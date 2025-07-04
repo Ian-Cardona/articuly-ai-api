@@ -1,4 +1,4 @@
-import { azureSpeechService } from '../services/azure-speech.service.js';
+import { azureSpeechService } from '../services/azure-speech.service.ts';
 
 import type { HandlerWebSocket, StartAudioStreamPayload, WebSocketMessage, StreamReadyPayload, AudioChunkPayload, StreamStoppedPayload } from '../types/websocket.type.js';
 
@@ -6,7 +6,7 @@ async function handleStartAudioStream(ws: HandlerWebSocket, payload: StartAudioS
   if (!ws.userId) {
     throw new Error('User not authenticated to start stream.');
   }
-  if (!payload?.expectedText) {
+  if (!payload.expectedText) {
     throw new Error('Missing expectedText for audio stream.');
   }
 
@@ -52,7 +52,7 @@ async function handleStopAudioStream(ws: HandlerWebSocket) {
 export const webSocketController = {
   handleMessage: async (ws: HandlerWebSocket, message: string) => {
     try {
-      const parsedMessage: WebSocketMessage = JSON.parse(message);
+      const parsedMessage = JSON.parse(message) as WebSocketMessage;
       switch (parsedMessage.type) {
         case 'START_AUDIO_STREAM':
           await handleStartAudioStream(ws, parsedMessage.payload as StartAudioStreamPayload);

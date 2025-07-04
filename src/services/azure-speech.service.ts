@@ -1,6 +1,6 @@
 import { SpeechRecognizer, SpeechConfig, PronunciationAssessmentConfig, AudioConfig, AudioInputStream, AudioStreamFormat, ResultReason, PronunciationAssessmentResult, CancellationReason } from 'microsoft-cognitiveservices-speech-sdk';
 
-import { config } from '../config/index.js';
+import { config } from '../config/index.ts';
 
 import type { PushAudioInputStream } from 'microsoft-cognitiveservices-speech-sdk';
 import type { HandlerWebSocket, PronunciationFeedbackPayload } from '../types/websocket.type.js';
@@ -37,7 +37,7 @@ class AzureSpeechService {
 
     this.activeRecognizers.set(ws.userId, { recognizer, pushStream });
 
-    recognizer.recognized = (s, e) => {
+    recognizer.recognized = (_, e) => {
       if (e.result.reason === ResultReason.RecognizedSpeech) {
         const pronunciationResult = PronunciationAssessmentResult.fromResult(e.result);
         console.log(`[Azure Recognized] User ${ws.userId} "${e.result.text}"`);
@@ -53,7 +53,7 @@ class AzureSpeechService {
       }
     };
 
-    recognizer.canceled = (s, e) => {
+    recognizer.canceled = (_, e) => {
       console.error(`[Azure Cancelled] User ${ws.userId}: Reason=${e.reason}`);
       if (e.reason === CancellationReason.Error) {
         console.error(`[Azure Canceled] ErrorCode=${e.errorCode}, ErrorDetails=${e.errorDetails}`);
@@ -82,17 +82,15 @@ class AzureSpeechService {
     const connection = this.activeRecognizers.get(userId);
     if (connection) {
       connection.pushStream.close();
-      if (connection.recognizer) {
-        connection.recognizer.stopContinuousRecognitionAsync(
-          () => {
-            connection.recognizer.close();
-          },
-          (error) => {
-            console.error(`Error stopping Azure recognizer for user ${userId}:`, error);
-            connection.recognizer.close();
-          },
-        );
-      }
+      connection.recognizer.stopContinuousRecognitionAsync(
+        () => {
+          connection.recognizer.close();
+        },
+        (error) => {
+          console.error(`Error stopping Azure recognizer for user ${userId}:`, error);
+          connection.recognizer.close();
+        },
+      );
       this.activeRecognizers.delete(userId);
       console.log(`Azure connection closed and resources released for user ${userId}.`);
     }

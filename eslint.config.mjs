@@ -16,6 +16,7 @@ export default defineConfig([
         project: "./tsconfig.json",
         sourceType: "module",
         tsconfigRootDir: new URL('.', import.meta.url),
+        ecmaVersion: 2022,
       },
       globals: globals.node
     },
@@ -74,9 +75,10 @@ export default defineConfig([
         'error',
         'ignorePackages',
         {
-          'ts': 'never',
-          'tsx': 'never',
           'js': 'always',
+          'mjs': 'always',
+          'ts': 'always',
+          'tsx': 'always',
         }
       ],
       'import/order': [
@@ -90,7 +92,7 @@ export default defineConfig([
     settings: {
       'import/resolver': {
         node: {
-          extensions: ['.js', '.ts', '.d.ts']
+          extensions: ['.js', '.mjs', '.ts', '.tsx', '.d.ts']
         }
       }
     }

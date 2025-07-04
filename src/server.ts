@@ -1,5 +1,5 @@
-import app, { wss } from './app';
-import { webSocketController } from './controllers/websocket.controller';
+import app, { wss } from './app.ts';
+import { webSocketController } from './controllers/websocket.controller.ts';
 
 import type { HandlerWebSocket } from './types/websocket.type.js';
 
