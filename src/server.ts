@@ -1,9 +1,9 @@
-import app, { wss } from './app.js';
-import { webSocketController } from './controllers/websocket.controller.js';
+import app, { wss } from './app';
+import { webSocketController } from './controllers/websocket.controller';
 
 import type { HandlerWebSocket } from './types/websocket.type.js';
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT ?? 3000;
 
 const server = app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
@@ -20,9 +20,7 @@ server.on('upgrade', (req, socket, head) => {
 
 wss.on('connection', (ws: HandlerWebSocket) => {
   // TODO: Assign handlerWs.userId here based on authentication/session/query, for now use a random string for demo
-  if (!ws.userId) {
-    ws.userId = Math.random().toString(36).substring(2, 15);
-  }
+  ws.userId ??= Math.random().toString(36).substring(2, 15);
 
   ws.on('message', (message) => {
     if (typeof message === 'string') {

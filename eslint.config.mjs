@@ -74,10 +74,9 @@ export default defineConfig([
         'error',
         'ignorePackages',
         {
-          'ts': 'always',
-          'tsx': 'always',
+          'ts': 'never',
+          'tsx': 'never',
           'js': 'always',
-          'mjs': 'always',
         }
       ],
       'import/order': [
@@ -91,9 +90,9 @@ export default defineConfig([
     settings: {
       'import/resolver': {
         node: {
-          extensions: ['.js', '.ts', '.mjs', '.tsx'],
-        },
-      },
-    },
+          extensions: ['.js', '.ts', '.d.ts']
+        }
+      }
+    }
   }
 ]);
