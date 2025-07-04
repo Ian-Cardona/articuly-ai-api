@@ -5,10 +5,10 @@ import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 export const config = {
-  port: process.env.PORT || 3000,
-  azureSpeechKey: process.env.AZURE_SPEECH_KEY || '',
-  azureSpeechRegion: process.env.AZURE_SPEECH_REGION || 'eastus',
-  firebaseServiceAccountPath: process.env.FIREBASE_SERVICE_ACCOUNT_PATH || '',
+  port: process.env.PORT ?? 3000,
+  azureSpeechKey: process.env.AZURE_SPEECH_KEY ?? '',
+  azureSpeechRegion: process.env.AZURE_SPEECH_REGION ?? 'eastus',
+  firebaseServiceAccountPath: process.env.FIREBASE_SERVICE_ACCOUNT_PATH ?? '',
 };
 
 if (!config.azureSpeechKey) {
