@@ -3,16 +3,28 @@ import { WebSocketServer } from 'ws';
 
 const app = express();
 
-app.get('/', (_req, res) => {
-  res.send('Hello World!');
-});
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.get('/api', (_req, res) => {
-  res.send('API is running.');
+app.use((req, _res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
 });
 
 app.get('/api/health', (_req, res) => {
-  res.status(200).json({ status: 'Ok' });
+  res.status(200).json({
+    status: 'Ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
+app.get('/api', (_req, res) => {
+  res.json({
+    message: 'SpeakFast API is running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.use((_req, res) => {

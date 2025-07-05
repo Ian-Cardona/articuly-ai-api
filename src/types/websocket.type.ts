@@ -1,22 +1,30 @@
-import type { PushAudioInputStream, SpeechRecognizer } from 'microsoft-cognitiveservices-speech-sdk';
 import type { WebSocket } from 'ws';
+import type * as speechsdk from 'microsoft-cognitiveservices-speech-sdk';
 
 export interface WebSocketMessage<T = unknown> {
   type: string;
   payload?: T;
 }
 
-export interface HandlerWebSocket extends WebSocket {
+
+
+export interface ErrorPayload {
+  code?: string;
+  message: string;
+}
+
+export interface AuthenticatedWebSocket extends WebSocket {
   userId?: string;
-  activeAzureRecognizer?: SpeechRecognizer;
-  activeAzurePushStream?: PushAudioInputStream;
+  activeAzureRecognizer?: speechsdk.SpeechRecognizer;
+  activeAzurePushStream?: speechsdk.PushAudioInputStream;
   currentExercise?: {
     exerciseType: 'tongueTwister';
     expectedText: string;
+    expectedWords: string[];
+    nextWordToConfirmIndex: number;
   };
 }
 
-// Client -> Server: Initiate audio stream for an exercise
 export interface StartAudioStreamPayload {
   exerciseType: 'tongueTwister';
   expectedText: string;
@@ -25,23 +33,33 @@ export interface StartAudioStreamPayload {
 // Client -> Server: Send audio data chunks
 export interface AudioChunkPayload {
   data: string; // Base64 encoded audio data (raw PCM bytes)
-  sequence: number; // To help order chunks if they arrive out of order (good practice)
+  sequence: number;
 }
 
-// Client -> Server: Signal end of audio stream
-export type StopAudioStreamPayload = object;
+export interface StopAudioStreamPayload {
+  // No specific payload needed for now, just the type
+}
 
-// Server -> Client: Pronunciation assessment feedback
+// Server -> Client: Immediate word feedback (textual match)
+export interface WordFeedbackLivePayload {
+  word: string;
+  index: number;
+  status: 'matched' | 'skipped' | 'misrecognized'; // Simple status for immediate UI feedback
+  // 'matched': The word was heard and matched the expected word.
+  // 'skipped': The word was expected but not heard, and subsequent words were heard.
+  // 'misrecognized': The word was heard, but didn't match the expected word at this position.
+}
+
+// Server -> Client: Pronunciation assessment feedback (final, detailed)
 export interface PronunciationFeedbackPayload {
-  overallResult: unknown; // The raw JSON result from Azure, or a processed subset
+  overallResult: unknown; // The raw JSON result from Azure, which includes word-level details
+  // You might add more structured fields here later if you want to simplify on backend
 }
 
-// Server -> Client: Confirmation that stream is ready
 export interface StreamReadyPayload {
   message: string;
 }
 
-// Server -> Client: Confirmation that stream is stopped
 export interface StreamStoppedPayload {
   message: string;
 }

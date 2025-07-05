@@ -1,11 +1,8 @@
-import { azureSpeechService } from '../services/azure-speech.service.ts';
+import { azureSpeechService } from '../services/azure_speech.service.ts';
 
-import type { HandlerWebSocket, StartAudioStreamPayload, WebSocketMessage, StreamReadyPayload, AudioChunkPayload, StreamStoppedPayload } from '../types/websocket.type.js';
+import type { AuthenticatedWebSocket, StartAudioStreamPayload, WebSocketMessage, StreamReadyPayload, AudioChunkPayload, StreamStoppedPayload } from '../types/websocket.type.js';
 
-async function handleStartAudioStream(ws: HandlerWebSocket, payload: StartAudioStreamPayload) {
-  if (!ws.userId) {
-    throw new Error('User not authenticated to start stream.');
-  }
+async function handleStartAudioStream(ws: AuthenticatedWebSocket, payload: StartAudioStreamPayload) {
   if (!payload.expectedText) {
     throw new Error('Missing expectedText for audio stream.');
   }
@@ -13,15 +10,10 @@ async function handleStartAudioStream(ws: HandlerWebSocket, payload: StartAudioS
   console.log(`User ${ws.userId} starting audio stream for exercise: "${payload.expectedText}"`);
 
   await azureSpeechService.createAzureConnection(ws, payload.expectedText);
-
-  ws.currentExercise = payload;
   ws.send(JSON.stringify({ type: 'STREAM_READY', payload: { message: 'Ready to receive audio chunks.' } as StreamReadyPayload }));
 }
 
-async function handleAudioChunk(ws: HandlerWebSocket, payload: AudioChunkPayload) {
-  if (!ws.userId) {
-    throw new Error('User not authenticated to send audio.');
-  }
+async function handleAudioChunk(ws: AuthenticatedWebSocket, payload: AudioChunkPayload) {
   if (!ws.currentExercise?.expectedText) {
     ws.send(JSON.stringify({ type: 'ERROR', payload: { code: 'STREAM_NOT_STARTED', message: 'Audio stream not initialized or missing context.' } }));
     return;
@@ -31,15 +23,12 @@ async function handleAudioChunk(ws: HandlerWebSocket, payload: AudioChunkPayload
     return;
   }
   // Forward audio chunk to Azure AI Speech
-  await azureSpeechService.sendAudioToAzure(ws.userId, payload.data);
+  await azureSpeechService.sendAudioToAzure(ws.userId!, payload.data);
 }
 
-async function handleStopAudioStream(ws: HandlerWebSocket) {
-  if (!ws.userId) {
-    throw new Error('User not authenticated.');
-  }
+async function handleStopAudioStream(ws: AuthenticatedWebSocket) {
   if (ws.activeAzureRecognizer) {
-    await azureSpeechService.closeAzureConnection(ws.userId);
+    await azureSpeechService.closeAzureConnection(ws.userId!);
   }
   // Clean up current exercise context
   delete ws.currentExercise;
@@ -50,7 +39,7 @@ async function handleStopAudioStream(ws: HandlerWebSocket) {
 }
 
 export const webSocketController = {
-  handleMessage: async (ws: HandlerWebSocket, message: string) => {
+  handleMessage: async (ws: AuthenticatedWebSocket, message: string) => {
     try {
       const parsedMessage = JSON.parse(message) as WebSocketMessage;
       switch (parsedMessage.type) {
