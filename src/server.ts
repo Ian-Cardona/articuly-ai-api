@@ -1,8 +1,9 @@
 import app, { wss } from './app.ts';
 import { webSocketController } from './controllers/websocket.controller.ts';
 import { azureSpeechService } from './services/azure_speech.service.ts';
+import { verifyIdToken } from './firebase/firebase_admin.ts';
 
-import type { AuthenticatedWebSocket } from './types/websocket.type.js';
+import type { AuthenticatedWebSocket, WebSocketMessage, AuthMessage } from './types/websocket.type.ts';
 
 const PORT = process.env.PORT ?? 3000;
 
@@ -10,7 +11,6 @@ const server = app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
 
-// Graceful shutdown handling
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');
   server.close(() => {
@@ -36,17 +36,40 @@ server.on('upgrade', (req, socket, head) => {
   });
 });
 
-wss.on('connection', (ws: AuthenticatedWebSocket) => {
-  // TODO: Assign handlerWs.userId here based on authentication/session/query, for now use a random string for demo
-  ws.userId ??= Math.random().toString(36).substring(2, 15);
-
+wss.on('connection', (ws: AuthenticatedWebSocket, _req: Request) => {
+  let userId: string | null = null;
   ws.on('message', async (message) => {
     try {
-      if (typeof message === 'string') {
-        await webSocketController.handleMessage(ws, message);
+      const messageString: string = message.toString();
+      const data = JSON.parse(messageString) as WebSocketMessage;
+
+      if (data.type === 'AUTH' && !userId) {
+        const authData = data as AuthMessage;
+        try {
+          const decodedToken = await verifyIdToken(authData.idToken);
+          userId = decodedToken.uid;
+          console.log(`User ${userId} authenticated successfully.`);
+          ws.send(JSON.stringify({ type: 'AUTH_SUCCESS', message: 'Authenticated' }));
+          ws.userId = userId;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          console.error(`Authentication failed for incoming connection: ${errorMessage}`);
+          ws.send(JSON.stringify({ type: 'AUTH_ERROR', message: errorMessage }));
+          ws.close(1008, 'Authentication failed');
+          return;
+        }
+      } else if (userId && data.type === 'AUDIO') {
+        // Process audio from an authenticated user
+        // Use ws.userId for usage tracking and Firestore interactions
+        // ... your existing Azure speech processing logic ...
+        await webSocketController.handleMessage(ws, messageString);
       } else {
-        console.warn('Received non-string WebSocket message:', message);
-        ws.send(JSON.stringify({ type: 'ERROR', payload: { message: 'Invalid message format.' } }));
+        // Handle unauthenticated audio attempts or other invalid messages
+        console.warn('Received unauthenticated message or invalid type:', data);
+        ws.send(JSON.stringify({ type: 'ERROR', message: 'Not authenticated or invalid message.' }));
+        if (!userId) {
+          ws.close(1008, 'Authentication required');
+        }
       }
     } catch (error) {
       console.error('WebSocket message handling error:', error);

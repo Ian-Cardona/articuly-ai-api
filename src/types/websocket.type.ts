@@ -6,11 +6,9 @@ export interface WebSocketMessage<T = unknown> {
   payload?: T;
 }
 
-
-
-export interface ErrorPayload {
-  code?: string;
-  message: string;
+export interface AuthMessage extends WebSocketMessage {
+  type: 'AUTH';
+  idToken: string;
 }
 
 export interface AuthenticatedWebSocket extends WebSocket {

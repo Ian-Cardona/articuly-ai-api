@@ -2,18 +2,19 @@ import * as speechSdk from 'microsoft-cognitiveservices-speech-sdk';
 
 import { config } from '../config/index.ts';
 
-import type { AuthenticatedWebSocket, PronunciationFeedbackPayload, WordFeedbackLivePayload, ErrorPayload } from '../types/websocket.type.ts';
+import type { AuthenticatedWebSocket, PronunciationFeedbackPayload, WordFeedbackLivePayload } from '../types/websocket.type.ts';
 
 class AzureSpeechService {
   private activeRecognizers = new Map<string, { recognizer: speechSdk.SpeechRecognizer, pushStream: speechSdk.PushAudioInputStream }>();
 
   async createAzureConnection(ws: AuthenticatedWebSocket, expectedText: string) {
-    // Check if there's already an active connection for this user
-    if (this.activeRecognizers.has(ws.userId!)) {
-      console.warn(`Azure connection already active for user ${ws.userId!}. Re-initializing.`);
-      this.closeAzureConnection(ws.userId!);
+    if (!ws.userId) {
+      throw new Error('WebSocket user ID is required but not provided');
     }
-
+    if (this.activeRecognizers.has(ws.userId)) {
+      console.warn(`Azure connection already active for user ${ws.userId}. Re-initializing.`);
+      await this.closeAzureConnection(ws.userId);
+    }
     const speechConfig = speechSdk.SpeechConfig.fromSubscription(config.azureSpeechKey, config.azureSpeechRegion);
     speechConfig.speechRecognitionLanguage = 'en-US';
 
@@ -37,18 +38,17 @@ class AzureSpeechService {
     ws.activeAzureRecognizer = recognizer;
     ws.activeAzurePushStream = pushStream;
 
-    this.activeRecognizers.set(ws.userId!, { recognizer, pushStream });
+    this.activeRecognizers.set(ws.userId, { recognizer, pushStream });
 
     // Store the expected words for real-time comparison
     ws.currentExercise = {
       exerciseType: 'tongueTwister',
       expectedText: expectedText,
-      expectedWords: expectedText.toLowerCase().split(/\s+/), // Store lowercased words
-      nextWordToConfirmIndex: 0, // Start at the first word
+      expectedWords: expectedText.toLowerCase().split(/\s+/),
+      nextWordToConfirmIndex: 0,
     };
 
     // --- Event Handlers for Azure Speech SDK ---
-
     // 1. `recognizing` event: For immediate, partial feedback
     recognizer.recognizing = (_, e) => {
       if (e.result.reason === speechSdk.ResultReason.RecognizingSpeech && ws.currentExercise) {
@@ -69,7 +69,7 @@ class AzureSpeechService {
             if (recognizedWord === expectedWord) {
               // If this is a new word we just matched (i.e., we haven't sent feedback for it yet)
               if (currentExpectedIndex === ws.currentExercise.nextWordToConfirmIndex) {
-                console.log(`[Azure Recognizing - Match] User ${ws.userId!}: "${recognizedWord}" (Index: ${currentExpectedIndex})`);
+                console.log(`[Azure Recognizing - Match] User ${ws.userId}: "${recognizedWord}" (Index: ${currentExpectedIndex})`);
                 ws.send(JSON.stringify({
                   type: 'WORD_FEEDBACK_LIVE',
                   payload: {
@@ -99,23 +99,20 @@ class AzureSpeechService {
     recognizer.recognized = (_, e) => {
       if (e.result.reason === speechSdk.ResultReason.RecognizedSpeech) {
         const pronunciationResult = speechSdk.PronunciationAssessmentResult.fromResult(e.result);
-        console.log(`[Azure Recognized] User ${ws.userId!}: "${e.result.text}"`);
+        console.log(`[Azure Recognized] User ${ws.userId}: "${e.result.text}"`);
         console.log(`[Azure Score] Pronunciation: ${pronunciationResult.pronunciationScore}, Accuracy: ${pronunciationResult.accuracyScore}, Fluency: ${pronunciationResult.fluencyScore}, Completeness: ${pronunciationResult.completenessScore}`);
-
         // Send the raw JSON result back to the client, which contains word-level details
         ws.send(JSON.stringify({
           type: 'PRONUNCIATION_FEEDBACK',
           payload: { overallResult: JSON.parse(e.result.json) } as PronunciationFeedbackPayload,
         }));
-
         // Reset the word confirmation index for the next utterance
         if (ws.currentExercise) {
           ws.currentExercise.nextWordToConfirmIndex = 0;
         }
-
       } else if (e.result.reason === speechSdk.ResultReason.NoMatch) {
-        console.log(`[Azure NoMatch] User ${ws.userId!}: Speech could not be recognized.`);
-        ws.send(JSON.stringify({ type: 'ERROR', payload: { code: 'NO_SPEECH_MATCH', message: 'Azure could not recognize speech.' } as ErrorPayload }));
+        console.log(`[Azure NoMatch] User ${ws.userId}: Speech could not be recognized.`);
+        ws.send(JSON.stringify({ type: 'ERROR', payload: { code: 'NO_SPEECH_MATCH', message: 'Azure could not recognize speech.' } }));
         if (ws.currentExercise) {
           ws.currentExercise.nextWordToConfirmIndex = 0; // Reset on no match
         }
@@ -123,35 +120,49 @@ class AzureSpeechService {
     };
 
     recognizer.canceled = (_, e) => {
-      console.error(`[Azure Canceled] User ${ws.userId!}: Reason=${e.reason}`);
+      console.error(`[Azure Canceled] User ${ws.userId}: Reason=${e.reason}`);
       if (e.reason === speechSdk.CancellationReason.Error) {
         console.error(`[Azure Canceled] ErrorCode=${e.errorCode}, ErrorDetails=${e.errorDetails}`);
-        ws.send(JSON.stringify({ type: 'ERROR', payload: { code: String(e.errorCode), message: `Azure Error: ${e.errorDetails}` } as ErrorPayload }));
+        ws.send(JSON.stringify({ type: 'ERROR', payload: { code: String(e.errorCode), message: `Azure Error: ${e.errorDetails}` } }));
       }
-      this.closeAzureConnection(ws.userId!);
+      if (ws.userId) {
+        this.closeAzureConnection(ws.userId);
+      }
       if (ws.currentExercise) {
         ws.currentExercise.nextWordToConfirmIndex = 0; // Reset on cancel
       }
     };
 
     recognizer.sessionStopped = (_, _e) => {
-      console.log(`[Azure Session Stopped] User ${ws.userId!}: Session ended.`);
-      this.closeAzureConnection(ws.userId!);
+      console.log(`[Azure Session Stopped] User ${ws.userId}: Session ended.`);
+      if (ws.userId) {
+        this.closeAzureConnection(ws.userId);
+      }
       if (ws.currentExercise) {
         ws.currentExercise.nextWordToConfirmIndex = 0; // Reset on session stop
       }
     };
 
     recognizer.speechStartDetected = (_, _e) => {
-      console.log(`[Azure Event] User ${ws.userId!}: Speech start detected.`);
+      console.log(`[Azure Event] User ${ws.userId}: Speech start detected.`);
     };
 
     recognizer.speechEndDetected = (_, _e) => {
-      console.log(`[Azure Event] User ${ws.userId!}: Speech end detected.`);
+      console.log(`[Azure Event] User ${ws.userId}: Speech end detected.`);
     };
 
-    recognizer.startContinuousRecognitionAsync();
-    console.log(`Azure continuous recognition started for user ${ws.userId!} with expected text: "${expectedText}"`);
+    return new Promise<void>((resolve, reject) => {
+      recognizer.startContinuousRecognitionAsync(
+        () => {
+          console.log(`Azure continuous recognition started for user ${ws.userId} with expected text: "${expectedText}"`);
+          resolve();
+        },
+        (error) => {
+          console.error(`Failed to start Azure recognition for user ${ws.userId}:`, error);
+          reject(error);
+        },
+      );
+    });
   }
 
   async sendAudioToAzure(userId: string, audioBase64: string) {
@@ -162,25 +173,35 @@ class AzureSpeechService {
     if (typeof audioBase64 !== 'string') {
       throw new Error('audioBase64 must be a string');
     }
-    const audioBuffer = Buffer.from(audioBase64, 'base64');
-    connection.pushStream.write(audioBuffer);
+    try {
+      const audioBuffer = Buffer.from(audioBase64, 'base64');
+      connection.pushStream.write(audioBuffer);
+    } catch (error) {
+      console.error(`Error sending audio to Azure for user ${userId}:`, error);
+      throw error;
+    }
   }
 
   async closeAzureConnection(userId: string) {
     const connection = this.activeRecognizers.get(userId);
     if (connection) {
-      connection.pushStream.close();
-      connection.recognizer.stopContinuousRecognitionAsync(
-        () => {
-          connection.recognizer.close();
-        },
-        (error) => {
-          console.error(`Error stopping Azure recognizer for user ${userId}:`, error);
-          connection.recognizer.close();
-        },
-      );
-      this.activeRecognizers.delete(userId);
-      console.log(`Azure connection closed and resources released for user ${userId}.`);
+      return new Promise<void>((resolve) => {
+        connection.pushStream.close();
+        connection.recognizer.stopContinuousRecognitionAsync(
+          () => {
+            connection.recognizer.close();
+            this.activeRecognizers.delete(userId);
+            console.log(`Azure connection closed and resources released for user ${userId}.`);
+            resolve();
+          },
+          (error) => {
+            console.error(`Error stopping Azure recognizer for user ${userId}:`, error);
+            connection.recognizer.close();
+            this.activeRecognizers.delete(userId);
+            resolve();
+          },
+        );
+      });
     }
   }
 }

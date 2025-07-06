@@ -6,14 +6,15 @@ async function handleStartAudioStream(ws: AuthenticatedWebSocket, payload: Start
   if (!payload.expectedText) {
     throw new Error('Missing expectedText for audio stream.');
   }
-
   console.log(`User ${ws.userId} starting audio stream for exercise: "${payload.expectedText}"`);
-
   await azureSpeechService.createAzureConnection(ws, payload.expectedText);
   ws.send(JSON.stringify({ type: 'STREAM_READY', payload: { message: 'Ready to receive audio chunks.' } as StreamReadyPayload }));
 }
 
 async function handleAudioChunk(ws: AuthenticatedWebSocket, payload: AudioChunkPayload) {
+  if (!ws.userId) {
+    throw new Error('WebSocket user ID is required but not provided');
+  }
   if (!ws.currentExercise?.expectedText) {
     ws.send(JSON.stringify({ type: 'ERROR', payload: { code: 'STREAM_NOT_STARTED', message: 'Audio stream not initialized or missing context.' } }));
     return;
@@ -23,12 +24,15 @@ async function handleAudioChunk(ws: AuthenticatedWebSocket, payload: AudioChunkP
     return;
   }
   // Forward audio chunk to Azure AI Speech
-  await azureSpeechService.sendAudioToAzure(ws.userId!, payload.data);
+  await azureSpeechService.sendAudioToAzure(ws.userId, payload.data);
 }
 
 async function handleStopAudioStream(ws: AuthenticatedWebSocket) {
+  if (!ws.userId) {
+    throw new Error('WebSocket user ID is required but not provided');
+  }
   if (ws.activeAzureRecognizer) {
-    await azureSpeechService.closeAzureConnection(ws.userId!);
+    await azureSpeechService.closeAzureConnection(ws.userId);
   }
   // Clean up current exercise context
   delete ws.currentExercise;
