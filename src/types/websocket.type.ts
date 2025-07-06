@@ -1,5 +1,6 @@
 import type { WebSocket } from 'ws';
 import type * as speechsdk from 'microsoft-cognitiveservices-speech-sdk';
+import type { AudioSession } from '../models/audio_session.model.ts';
 
 export interface WebSocketMessage<T = unknown> {
   type: string;
@@ -21,6 +22,7 @@ export interface AuthenticatedWebSocket extends WebSocket {
     expectedWords: string[];
     nextWordToConfirmIndex: number;
   };
+  audioSession?: AudioSession;
 }
 
 export interface StartAudioStreamPayload {

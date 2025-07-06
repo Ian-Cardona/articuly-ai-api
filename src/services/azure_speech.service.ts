@@ -1,8 +1,10 @@
 import * as speechSdk from 'microsoft-cognitiveservices-speech-sdk';
 
 import { config } from '../config/index.ts';
+import { errorResponses } from '../types/error.type.ts';
+import { createWordFeedbackResponse, createPronunciationFeedbackResponse } from '../types/response.type.ts';
 
-import type { AuthenticatedWebSocket, PronunciationFeedbackPayload, WordFeedbackLivePayload } from '../types/websocket.type.ts';
+import type { AuthenticatedWebSocket } from '../types/websocket.type.ts';
 
 class AzureSpeechService {
   private activeRecognizers = new Map<string, { recognizer: speechSdk.SpeechRecognizer, pushStream: speechSdk.PushAudioInputStream }>();
@@ -11,10 +13,16 @@ class AzureSpeechService {
     if (!ws.userId) {
       throw new Error('WebSocket user ID is required but not provided');
     }
+
+    if (!expectedText || typeof expectedText !== 'string' || expectedText.trim().length === 0) {
+      throw new Error('Expected text is required and must be a non-empty string');
+    }
+
     if (this.activeRecognizers.has(ws.userId)) {
       console.warn(`Azure connection already active for user ${ws.userId}. Re-initializing.`);
       await this.closeAzureConnection(ws.userId);
     }
+
     const speechConfig = speechSdk.SpeechConfig.fromSubscription(config.azureSpeechKey, config.azureSpeechRegion);
     speechConfig.speechRecognitionLanguage = 'en-US';
 
@@ -35,12 +43,19 @@ class AzureSpeechService {
 
     pronunciationAssessmentConfig.applyTo(recognizer);
 
+    // Set Azure connection on WebSocket (legacy support)
     ws.activeAzureRecognizer = recognizer;
     ws.activeAzurePushStream = pushStream;
 
+    // Set Azure connection on session (new domain model)
+    const session = ws.audioSession;
+    if (session) {
+      session.setAzureConnection(recognizer, pushStream);
+    }
+
     this.activeRecognizers.set(ws.userId, { recognizer, pushStream });
 
-    // Store the expected words for real-time comparison
+    // Store the expected words for real-time comparison (legacy support)
     ws.currentExercise = {
       exerciseType: 'tongueTwister',
       expectedText: expectedText,
@@ -51,34 +66,32 @@ class AzureSpeechService {
     // --- Event Handlers for Azure Speech SDK ---
     // 1. `recognizing` event: For immediate, partial feedback
     recognizer.recognizing = (_, e) => {
-      if (e.result.reason === speechSdk.ResultReason.RecognizingSpeech && ws.currentExercise) {
+      if (e.result.reason === speechSdk.ResultReason.RecognizingSpeech && ws.audioSession?.exerciseConfig) {
         const partialText = e.result.text;
         const recognizedWords = partialText.toLowerCase().split(/\s+/).filter(word => word.length > 0);
 
         // We only care about words that are new and match our sequence
-        let currentExpectedIndex = ws.currentExercise.nextWordToConfirmIndex;
+        let currentExpectedIndex = ws.audioSession.nextWordToConfirmIndex;
+        const exerciseConfig = ws.audioSession.exerciseConfig;
 
         for (let i = 0; i < recognizedWords.length; i++) {
           const recognizedWord = recognizedWords[i];
 
           // If we haven't confirmed this expected word yet
-          if (currentExpectedIndex < ws.currentExercise.expectedWords.length) {
-            const expectedWord = ws.currentExercise.expectedWords[currentExpectedIndex];
+          if (currentExpectedIndex < exerciseConfig.expectedWords.length) {
+            const expectedWord = exerciseConfig.expectedWords[currentExpectedIndex];
 
             // Check if the recognized word matches the current expected word
             if (recognizedWord === expectedWord) {
               // If this is a new word we just matched (i.e., we haven't sent feedback for it yet)
-              if (currentExpectedIndex === ws.currentExercise.nextWordToConfirmIndex) {
+              if (currentExpectedIndex === ws.audioSession.nextWordToConfirmIndex) {
                 console.log(`[Azure Recognizing - Match] User ${ws.userId}: "${recognizedWord}" (Index: ${currentExpectedIndex})`);
-                ws.send(JSON.stringify({
-                  type: 'WORD_FEEDBACK_LIVE',
-                  payload: {
-                    word: ws.currentExercise.expectedText.split(/\s+/)[currentExpectedIndex], // Send original casing
-                    index: currentExpectedIndex,
-                    status: 'matched',
-                  } as WordFeedbackLivePayload,
-                }));
-                ws.currentExercise.nextWordToConfirmIndex++; // Move to the next expected word
+                ws.send(JSON.stringify(createWordFeedbackResponse(
+                  exerciseConfig.expectedText.split(/\s+/)[currentExpectedIndex], // Send original casing
+                  currentExpectedIndex,
+                  'matched',
+                )));
+                ws.audioSession.advanceWordIndex(); // Move to the next expected word
               }
               currentExpectedIndex++; // Advance the local pointer for recognized words
             } else {
@@ -102,19 +115,16 @@ class AzureSpeechService {
         console.log(`[Azure Recognized] User ${ws.userId}: "${e.result.text}"`);
         console.log(`[Azure Score] Pronunciation: ${pronunciationResult.pronunciationScore}, Accuracy: ${pronunciationResult.accuracyScore}, Fluency: ${pronunciationResult.fluencyScore}, Completeness: ${pronunciationResult.completenessScore}`);
         // Send the raw JSON result back to the client, which contains word-level details
-        ws.send(JSON.stringify({
-          type: 'PRONUNCIATION_FEEDBACK',
-          payload: { overallResult: JSON.parse(e.result.json) } as PronunciationFeedbackPayload,
-        }));
+        ws.send(JSON.stringify(createPronunciationFeedbackResponse(JSON.parse(e.result.json))));
         // Reset the word confirmation index for the next utterance
-        if (ws.currentExercise) {
-          ws.currentExercise.nextWordToConfirmIndex = 0;
+        if (ws.audioSession) {
+          ws.audioSession.resetWordIndex();
         }
       } else if (e.result.reason === speechSdk.ResultReason.NoMatch) {
         console.log(`[Azure NoMatch] User ${ws.userId}: Speech could not be recognized.`);
-        ws.send(JSON.stringify({ type: 'ERROR', payload: { code: 'NO_SPEECH_MATCH', message: 'Azure could not recognize speech.' } }));
-        if (ws.currentExercise) {
-          ws.currentExercise.nextWordToConfirmIndex = 0; // Reset on no match
+        ws.send(JSON.stringify(errorResponses.azureNotReady()));
+        if (ws.audioSession) {
+          ws.audioSession.resetWordIndex(); // Reset on no match
         }
       }
     };
@@ -123,13 +133,17 @@ class AzureSpeechService {
       console.error(`[Azure Canceled] User ${ws.userId}: Reason=${e.reason}`);
       if (e.reason === speechSdk.CancellationReason.Error) {
         console.error(`[Azure Canceled] ErrorCode=${e.errorCode}, ErrorDetails=${e.errorDetails}`);
-        ws.send(JSON.stringify({ type: 'ERROR', payload: { code: String(e.errorCode), message: `Azure Error: ${e.errorDetails}` } }));
+        ws.send(JSON.stringify(errorResponses.internalError({
+          operation: 'azure_recognition',
+          errorCode: String(e.errorCode),
+          errorDetails: e.errorDetails,
+        })));
       }
       if (ws.userId) {
         this.closeAzureConnection(ws.userId);
       }
-      if (ws.currentExercise) {
-        ws.currentExercise.nextWordToConfirmIndex = 0; // Reset on cancel
+      if (ws.audioSession) {
+        ws.audioSession.resetWordIndex(); // Reset on cancel
       }
     };
 
@@ -138,8 +152,8 @@ class AzureSpeechService {
       if (ws.userId) {
         this.closeAzureConnection(ws.userId);
       }
-      if (ws.currentExercise) {
-        ws.currentExercise.nextWordToConfirmIndex = 0; // Reset on session stop
+      if (ws.audioSession) {
+        ws.audioSession.resetWordIndex(); // Reset on session stop
       }
     };
 
@@ -166,23 +180,41 @@ class AzureSpeechService {
   }
 
   async sendAudioToAzure(userId: string, audioBase64: string) {
+    if (!userId || typeof userId !== 'string') {
+      throw new Error('User ID is required and must be a string');
+    }
+
+    if (!audioBase64 || typeof audioBase64 !== 'string') {
+      throw new Error('Audio data is required and must be a base64 string');
+    }
+
     const connection = this.activeRecognizers.get(userId);
     if (!connection?.pushStream) {
       throw new Error(`No active Azure connection for user ${userId}`);
     }
-    if (typeof audioBase64 !== 'string') {
-      throw new Error('audioBase64 must be a string');
-    }
+
     try {
+      // Validate base64 data before processing
       const audioBuffer = Buffer.from(audioBase64, 'base64');
+      if (audioBuffer.length === 0) {
+        throw new Error('Invalid audio data: empty buffer after base64 decoding');
+      }
+
       connection.pushStream.write(audioBuffer);
     } catch (error) {
       console.error(`Error sending audio to Azure for user ${userId}:`, error);
+      if (error instanceof Error && error.message.includes('Invalid base64')) {
+        throw new Error('Invalid base64 audio data format');
+      }
       throw error;
     }
   }
 
   async closeAzureConnection(userId: string) {
+    if (!userId || typeof userId !== 'string') {
+      throw new Error('User ID is required and must be a string');
+    }
+
     const connection = this.activeRecognizers.get(userId);
     if (connection) {
       return new Promise<void>((resolve) => {

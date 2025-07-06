@@ -55,7 +55,12 @@ export function createMockWebSocket(userId = 'user1'): AuthenticatedWebSocket {
 export function createMockRecognizer() {
   return {
     startContinuousRecognitionAsync: jest.fn((success, error) => success && (success as () => void)()),
-    stopContinuousRecognitionAsync: jest.fn((success, error) => success && (success as () => void)()),
+    stopContinuousRecognitionAsync: jest.fn((success, error) => {
+      // Always call success callback to prevent hanging promises
+      if (success && typeof success === 'function') {
+        success();
+      }
+    }),
     close: jest.fn(),
   };
 }

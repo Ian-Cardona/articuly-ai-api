@@ -1,6 +1,13 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach, afterAll } from '@jest/globals';
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { azureSpeechService } from '../../src/services/azure_speech.service';
 import { createMockWebSocket, createMockRecognizer, createMockPushStream, clearActiveRecognizers } from '../helpers/azure_speech.helper';
+
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Mock the Azure Speech SDK
 jest.mock('microsoft-cognitiveservices-speech-sdk', () => {
@@ -61,13 +68,35 @@ describe('Azure Speech Service', () => {
     // Clean up any active connections to prevent Jest hanging
     const activeRecognizers = (azureSpeechService as any).activeRecognizers;
     if (activeRecognizers) {
-      for (const [userId] of activeRecognizers) {
+      const userIds = Array.from(activeRecognizers.keys());
+      for (const userId of userIds) {
         try {
-          await azureSpeechService.closeAzureConnection(userId);
+          // Force cleanup by directly removing from the map and calling close methods
+          const connection = activeRecognizers.get(userId);
+          if (connection) {
+            if (connection.pushStream && typeof connection.pushStream.close === 'function') {
+              connection.pushStream.close();
+            }
+            if (connection.recognizer && typeof connection.recognizer.close === 'function') {
+              connection.recognizer.close();
+            }
+          }
+          activeRecognizers.delete(userId);
         } catch (error) {
           // Ignore cleanup errors
         }
       }
+    }
+    
+    // Clear all mocks to prevent state leakage
+    jest.clearAllMocks();
+  });
+
+  afterAll(async () => {
+    // Final cleanup to ensure Jest exits
+    const activeRecognizers = (azureSpeechService as any).activeRecognizers;
+    if (activeRecognizers) {
+      activeRecognizers.clear();
     }
   });
 
@@ -84,7 +113,7 @@ describe('Azure Speech Service', () => {
     activeRecognizers.set('user123', { recognizer: createMockRecognizer(), pushStream: createMockPushStream() });
     await expect(azureSpeechService.sendAudioToAzure('user123', 123 as any))
       .rejects
-      .toThrow('audioBase64 must be a string');
+      .toThrow('Audio data is required and must be a base64 string');
     activeRecognizers.delete('user123');
   });
 
@@ -93,6 +122,73 @@ describe('Azure Speech Service', () => {
       .rejects
       .toThrow('No active Azure connection for user nonexistent-user');
   });
+
+  it('should successfully send audio to Azure', async () => {
+    // Mock the push stream to track write calls
+    const mockPushStream = createMockPushStream();
+    const activeRecognizers = (azureSpeechService as any).activeRecognizers;
+    activeRecognizers.set('user123', { 
+      recognizer: createMockRecognizer(), 
+      pushStream: mockPushStream 
+    });
+    
+    // Send audio
+    const audioData = 'dGVzdCBhdWRpbyBkYXRh'; // "test audio data" in base64
+    await azureSpeechService.sendAudioToAzure('user123', audioData);
+    
+    // Verify audio was sent
+    expect(mockPushStream.write).toHaveBeenCalledWith(
+      expect.any(Buffer)
+    );
+    
+    // Verify the buffer contains the decoded audio data
+    const writeCall = mockPushStream.write.mock.calls[0];
+    const sentBuffer = writeCall[0] as Buffer;
+    expect(sentBuffer).toBeInstanceOf(Buffer);
+    expect(sentBuffer.toString('base64')).toBe(audioData);
+  }, 10000);
+
+  it('should send real test audio file to Azure', async () => {
+    // Setup connection with the correct tongue twister
+    const expectedText = 'Terrific trolley treats trigger tremendously thankful, thoughtful, thorough testimonials';
+    const ws = createMockWebSocket('user456');
+    await azureSpeechService.createAzureConnection(ws, expectedText);
+    
+    // Mock the push stream to track write calls
+    const mockPushStream = createMockPushStream();
+    const activeRecognizers = (azureSpeechService as any).activeRecognizers;
+    activeRecognizers.set('user456', { 
+      recognizer: createMockRecognizer(), 
+      pushStream: mockPushStream 
+    });
+    
+    // Read the actual test audio file
+    const audioFilePath = join(__dirname, '..', 'test-audio', 'Terrific trolleys treat trigger tremendously.m4a');
+    const audioBuffer = readFileSync(audioFilePath);
+    const audioBase64 = audioBuffer.toString('base64');
+    
+    // Send the real audio to Azure
+    await azureSpeechService.sendAudioToAzure('user456', audioBase64);
+    
+    // Verify audio was sent
+    expect(mockPushStream.write).toHaveBeenCalledWith(
+      expect.any(Buffer)
+    );
+    
+    // Verify the buffer contains the actual audio data
+    const writeCall = mockPushStream.write.mock.calls[0];
+    const sentBuffer = writeCall[0] as Buffer;
+    expect(sentBuffer).toBeInstanceOf(Buffer);
+    expect(sentBuffer.length).toBe(audioBuffer.length);
+    expect(sentBuffer).toEqual(audioBuffer);
+    
+    // Verify the exercise was set up correctly
+    expect(ws.currentExercise?.expectedText).toBe(expectedText);
+    expect(ws.currentExercise?.expectedWords).toEqual([
+      'terrific', 'trolley', 'treats', 'trigger', 'tremendously', 
+      'thankful,', 'thoughtful,', 'thorough', 'testimonials'
+    ]);
+  }, 10000);
 
   describe('createAzureConnection', () => {
     it('should throw if ws.userId is missing', async () => {
