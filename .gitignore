@@ -1,7 +1,7 @@
 node_modules/
 dist/
 
-secrets/
+__secrets__/
 tests/
 
 .env

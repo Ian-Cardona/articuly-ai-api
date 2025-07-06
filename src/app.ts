@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import { WebSocketServer } from 'ws';
 
 const app = express();
@@ -6,12 +6,12 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use((req, _res, next) => {
+app.use((req: Request, _res: Response, next: NextFunction) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'Ok',
     timestamp: new Date().toISOString(),
@@ -19,7 +19,7 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-app.get('/api', (_req, res) => {
+app.get('/api', (_req: Request, res: Response) => {
   res.json({
     message: 'SpeakFast API is running',
     version: '1.0.0',
@@ -27,7 +27,7 @@ app.get('/api', (_req, res) => {
   });
 });
 
-app.use((_req, res) => {
+app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not Found' });
 });
 

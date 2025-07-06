@@ -4,6 +4,8 @@ import { azureSpeechService } from './services/azure_speech.service.ts';
 import { verifyIdToken } from './firebase/firebase_admin.ts';
 
 import type { AuthenticatedWebSocket, WebSocketMessage, AuthMessage } from './types/websocket.type.ts';
+import type { IncomingMessage } from 'http';
+import type { Socket } from 'net';
 
 const PORT = process.env.PORT ?? 3000;
 
@@ -27,7 +29,7 @@ process.on('SIGINT', () => {
   });
 });
 
-server.on('upgrade', (req, socket, head) => {
+server.on('upgrade', (req: IncomingMessage, socket:Socket, head:Buffer) => {
   wss.handleUpgrade(req, socket, head, (ws) => {
     wss.emit('connection', ws, req);
   });

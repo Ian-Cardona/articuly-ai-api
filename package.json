@@ -14,14 +14,16 @@
     "lint:fix": "eslint src --ext .ts --fix",
     "test": "node --experimental-vm-modules node_modules/.bin/jest",
     "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
-    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage"
+    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
+    "setup:env": "node scripts/setup-env.js"
   },
   "dependencies": {
     "dotenv": "^17.0.1",
     "express": "^5.1.0",
     "firebase-admin": "^13.4.0",
     "microsoft-cognitiveservices-speech-sdk": "^1.44.1",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "zod": "^3.25.74"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
