@@ -1,9 +1,18 @@
-// Error codes for consistent error handling
+import { ERROR_MESSAGES } from '../constants/error.constant.ts';
+
 export enum ErrorCode {
   // WebSocket errors
   WEBSOCKET_INVALID_MESSAGE = 'WEBSOCKET_INVALID_MESSAGE',
   WEBSOCKET_AUTH_FAILED = 'WEBSOCKET_AUTH_FAILED',
   WEBSOCKET_USER_NOT_FOUND = 'WEBSOCKET_USER_NOT_FOUND',
+  WEBSOCKET_UNAUTHORIZED = 'WEBSOCKET_UNAUTHORIZED',
+  WEBSOCKET_INVALID_PAYLOAD = 'WEBSOCKET_INVALID_PAYLOAD',
+  WEBSOCKET_UNSUPPORTED_MESSAGE_TYPE = 'WEBSOCKET_UNSUPPORTED_MESSAGE_TYPE',
+
+  // Session errors
+  SESSION_NOT_FOUND = 'SESSION_NOT_FOUND',
+  SESSION_NOT_ACTIVE = 'SESSION_NOT_ACTIVE',
+  SESSION_ALREADY_ACTIVE = 'SESSION_ALREADY_ACTIVE',
 
   // Audio stream errors
   AUDIO_STREAM_NOT_STARTED = 'AUDIO_STREAM_NOT_STARTED',
@@ -27,7 +36,6 @@ export enum ErrorCode {
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
 
-// Structured error response
 export interface ErrorResponse {
   type: 'ERROR';
   payload: {
@@ -38,7 +46,6 @@ export interface ErrorResponse {
   };
 }
 
-// Error factory functions
 export const createErrorResponse = (
   code: ErrorCode,
   message: string,
@@ -53,23 +60,37 @@ export const createErrorResponse = (
   },
 });
 
-// Common error responses
 export const errorResponses = {
   invalidMessage: (details?: Record<string, unknown>) =>
-    createErrorResponse(ErrorCode.WEBSOCKET_INVALID_MESSAGE, 'Invalid message format', details),
+    createErrorResponse(ErrorCode.WEBSOCKET_INVALID_MESSAGE, ERROR_MESSAGES.INVALID_MESSAGE_FORMAT, details),
 
   authFailed: (details?: Record<string, unknown>) =>
-    createErrorResponse(ErrorCode.WEBSOCKET_AUTH_FAILED, 'Authentication failed', details),
+    createErrorResponse(ErrorCode.WEBSOCKET_AUTH_FAILED, ERROR_MESSAGES.AUTHENTICATION_FAILED, details),
+
+  unauthorized: () =>
+    createErrorResponse(ErrorCode.WEBSOCKET_UNAUTHORIZED, ERROR_MESSAGES.UNAUTHORIZED_ACCESS),
+
+  invalidPayload: () =>
+    createErrorResponse(ErrorCode.WEBSOCKET_INVALID_PAYLOAD, ERROR_MESSAGES.INVALID_PAYLOAD_FORMAT),
+
+  unsupportedMessageType: (messageType: string) =>
+    createErrorResponse(ErrorCode.WEBSOCKET_UNSUPPORTED_MESSAGE_TYPE, ERROR_MESSAGES.UNSUPPORTED_MESSAGE_TYPE(messageType)),
+
+  sessionNotFound: () =>
+    createErrorResponse(ErrorCode.SESSION_NOT_FOUND, ERROR_MESSAGES.SESSION_NOT_FOUND),
+
+  sessionNotActive: () =>
+    createErrorResponse(ErrorCode.SESSION_NOT_ACTIVE, ERROR_MESSAGES.SESSION_NOT_ACTIVE),
 
   streamNotStarted: () =>
-    createErrorResponse(ErrorCode.AUDIO_STREAM_NOT_STARTED, 'Audio stream not initialized or missing context'),
+    createErrorResponse(ErrorCode.AUDIO_STREAM_NOT_STARTED, ERROR_MESSAGES.AUDIO_STREAM_NOT_INITIALIZED),
 
   azureNotReady: () =>
-    createErrorResponse(ErrorCode.AZURE_NOT_READY, 'Azure AI Speech connection not established or stream not ready'),
+    createErrorResponse(ErrorCode.AZURE_NOT_READY, ERROR_MESSAGES.AZURE_NOT_READY),
 
   audioDataInvalid: (details?: Record<string, unknown>) =>
-    createErrorResponse(ErrorCode.AUDIO_DATA_INVALID, 'Invalid audio data format', details),
+    createErrorResponse(ErrorCode.AUDIO_DATA_INVALID, ERROR_MESSAGES.INVALID_AUDIO_DATA_FORMAT, details),
 
   internalError: (details?: Record<string, unknown>) =>
-    createErrorResponse(ErrorCode.INTERNAL_SERVER_ERROR, 'Internal server error', details),
+    createErrorResponse(ErrorCode.INTERNAL_SERVER_ERROR, ERROR_MESSAGES.INTERNAL_SERVER_ERROR, details),
 };

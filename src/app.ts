@@ -1,5 +1,6 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { WebSocketServer } from 'ws';
+
+import { getSessionStats } from './services/session_monitor.service.ts';
 
 const app = express();
 
@@ -13,9 +14,10 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
-    status: 'Ok',
+    status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    sessions: getSessionStats(),
   });
 });
 
@@ -31,7 +33,4 @@ app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Not Found' });
 });
 
-const wss = new WebSocketServer({ noServer: true });
-
-export { wss };
 export default app;
