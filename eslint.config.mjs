@@ -1,21 +1,24 @@
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tseslintParser from "@typescript-eslint/parser";
-import { defineConfig } from "eslint/config";
 import stylistic from "@stylistic/eslint-plugin";
 import importPlugin from "eslint-plugin-import";
 import globals from "globals";
 
-export default defineConfig([
+export default [
   {
     files: ["src/**/*.ts", "src/**/*.mts", "src/**/*.cts", "*.ts"],
     ignores: ['dist', 'build', 'node_modules'],
-    plugins: { "@typescript-eslint": tseslint, '@stylistic': stylistic, import: importPlugin },
+    plugins: { 
+      "@typescript-eslint": tseslint, 
+      '@stylistic': stylistic, 
+      import: importPlugin 
+    },
     languageOptions: {
       parser: tseslintParser,
       parserOptions: {
         project: "./tsconfig.json",
         sourceType: "module",
-        tsconfigRootDir: new URL('.', import.meta.url),
+        ecmaVersion: 2022,
       },
       globals: globals.node
     },
@@ -67,16 +70,17 @@ export default defineConfig([
       // Express/API specific
       'no-unused-expressions': ['error', { allowShortCircuit: true, allowTernary: true }],
 
-      // Import Plugin ESM rules
+      // Import Plugin ESM rules - adjusted for NodeNext
       'import/no-unresolved': 'error',
       'import/no-extraneous-dependencies': 'error',
       'import/extensions': [
         'error',
         'ignorePackages',
         {
-          'ts': 'never',
-          'tsx': 'never',
           'js': 'always',
+          'mjs': 'always',
+          'ts': 'always',  // Required with allowImportingTsExtensions
+          'tsx': 'always',
         }
       ],
       'import/order': [
@@ -89,10 +93,18 @@ export default defineConfig([
     },
     settings: {
       'import/resolver': {
+        typescript: {
+          alwaysTryTypes: true,
+          project: './tsconfig.json',
+        },
         node: {
-          extensions: ['.js', '.ts', '.d.ts']
+          extensions: ['.js', '.mjs', '.ts', '.tsx', '.d.ts']
         }
+      },
+      'import/extensions': ['.js', '.mjs', '.ts', '.tsx'],
+      'import/parsers': {
+        '@typescript-eslint/parser': ['.ts', '.tsx']
       }
     }
   }
-]);
+];

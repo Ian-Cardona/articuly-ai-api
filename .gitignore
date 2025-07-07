@@ -1,10 +1,12 @@
 node_modules/
 dist/
 
-secrets/
+__secrets__/
+tests/
 
 .env
 
+.vscode/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
