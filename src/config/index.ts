@@ -11,9 +11,9 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 export const config = {
   port: process.env.PORT ?? 3000,
   azureSpeechKey: process.env.AZURE_SPEECH_KEY ?? '',
-  azureSpeechRegion: process.env.AZURE_SPEECH_REGION ?? 'eastus',
-  firebaseServiceAccountPath: process.env.FIREBASE_SERVICE_ACCOUNT_PATH ?? './__secrets__/speakfast-dev-firebase-adminsdk-fbsvc-3d649a3f4c.json',
-  firebaseProjectId: process.env.FIREBASE_PROJECT_ID ?? 'speakfast-dev',
+  azureSpeechRegion: process.env.AZURE_SPEECH_REGION ?? 'southeastasia',
+  firebaseServiceAccountPath: process.env.FIREBASE_SERVICE_ACCOUNT_PATH ?? './__secrets__/articuly-ai-dev-firebase-adminsdk-fbsvc-54b920f973.json',
+  firebaseProjectId: process.env.FIREBASE_PROJECT_ID ?? 'articuly-ai-dev',
 };
 
 if (!config.azureSpeechKey) {
