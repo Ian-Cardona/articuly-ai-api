@@ -1,4 +1,4 @@
-import { validateWebSocketMessage, safeJsonParse } from '../validation/websocket.validation.ts';
+import { validateWebSocketMessage, safeJsonParse } from '../validations/websocket.validation.ts';
 import { azureSpeechService } from '../services/azure_speech.service.ts';
 import { sessionUtils } from '../utils/session.utils.ts';
 import { sessionStoreManager } from '../services/session_store.service.ts';

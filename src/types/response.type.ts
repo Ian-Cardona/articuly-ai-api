@@ -48,9 +48,18 @@ export interface SuccessResponse extends BaseResponse {
   };
 }
 
+export interface AuthSuccessResponse extends BaseResponse {
+  type: 'auth_success';
+  payload: {
+    userId: string;
+    timestamp: string;
+  };
+}
+
 export type WebSocketResponse =
   | StreamReadyResponse
   | StreamStoppedResponse
   | WordFeedbackResponse
   | PronunciationFeedbackResponse
-  | SuccessResponse;
+  | SuccessResponse
+  | AuthSuccessResponse;

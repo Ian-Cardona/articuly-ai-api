@@ -2,7 +2,7 @@ import { ExerciseType } from '../types/session.type.ts';
 
 import type { ExerciseConfig } from '../types/session.type.ts';
 import type { SessionResponsePayload, ExerciseResponsePayload, WordFeedbackLivePayload, PronunciationFeedbackPayload } from '../types/websocket.type.ts';
-import type { StreamReadyResponse, StreamStoppedResponse, SuccessResponse } from '../types/response.type.ts';
+import type { StreamReadyResponse, StreamStoppedResponse, SuccessResponse, AuthSuccessResponse } from '../types/response.type.ts';
 
 function isExerciseConfig(obj: unknown): obj is ExerciseConfig {
   const maybe = obj as Partial<ExerciseConfig>;
@@ -122,6 +122,19 @@ export const createSuccessResponse = (message: string): SuccessResponse => {
     type: 'SUCCESS',
     payload: {
       message,
+      timestamp: getTimestamp(),
+    },
+  };
+};
+
+export const createAuthSuccessResponse = (userId: string): AuthSuccessResponse => {
+  if (typeof userId !== 'string') {
+    throw new Error('User ID must be a string');
+  }
+  return {
+    type: 'auth_success',
+    payload: {
+      userId,
       timestamp: getTimestamp(),
     },
   };

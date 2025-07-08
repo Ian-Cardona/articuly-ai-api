@@ -1,16 +1,15 @@
-import express, { type NextFunction, type Request, type Response } from 'express';
+import express, { type Request, type Response } from 'express';
 
 import { getSessionStats } from './services/session_monitor.service.ts';
+import { httpRequestLogger, notFoundHandler, httpErrorHandler } from './middlewares/index.ts';
 
 const app = express();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use((req: Request, _res: Response, next: NextFunction) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  next();
-});
+// Use structured logging middleware
+app.use(httpRequestLogger);
 
 app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
@@ -29,8 +28,10 @@ app.get('/api', (_req: Request, res: Response) => {
   });
 });
 
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: 'Not Found' });
-});
+// 404 handler
+app.use(notFoundHandler);
+
+// Error handler
+app.use(httpErrorHandler);
 
 export default app;
