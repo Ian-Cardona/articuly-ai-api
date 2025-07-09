@@ -42,10 +42,11 @@ wss.on('connection', (ws: AuthStateWebSocket) => {
   });
 });
 
-// Only start the server if this file is run directly (not imported for testing)
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Only start the server if not in test environment
+if (process.env.NODE_ENV !== 'test') {
   server.listen(PORT, () => {
     infoLogger(`Server is running on port ${PORT}`);
+    console.log(`Server is running on port ${PORT}`); // Add console.log for debugging
   });
 
   // Graceful shutdown

@@ -11,20 +11,13 @@ import { websocketErrorHandler, websocketAuthErrorHandler, websocketRateLimitErr
 import type { AuthStateWebSocket } from '../types/middleware.type.ts';
 import type { ValidationResult } from '../types/validation.type.ts';
 
-/**
- * Initialize middleware for a new WebSocket connection
- */
 export function initializeWebSocketMiddleware(ws: AuthStateWebSocket): void {
   initializeConnection(ws);
   websocketConnectionLogger(ws);
 }
 
-/**
- * Handle WebSocket message with middleware chain
- */
 export async function handleWebSocketMessageWithMiddleware(ws: AuthStateWebSocket, data: Buffer): Promise<void> {
   try {
-    // Check if authenticated
     if (!isAuthenticated(ws)) {
       const authResult = await authenticateConnection(ws, data);
       if (!authResult.success) {
@@ -65,18 +58,12 @@ export async function handleWebSocketMessageWithMiddleware(ws: AuthStateWebSocke
   }
 }
 
-/**
- * Handle WebSocket close with cleanup
- */
 export function handleWebSocketCloseWithMiddleware(ws: AuthStateWebSocket, code?: number, reason?: string): void {
   cleanupConnection(ws);
   websocketDisconnectionLogger(ws, code, reason);
   handleWebSocketClose(ws);
 }
 
-/**
- * Handle WebSocket error with logging
- */
 export function handleWebSocketErrorWithMiddleware(ws: AuthStateWebSocket, error: Error): void {
   websocketErrorHandler(ws, error);
   handleWebSocketError(ws, error);
