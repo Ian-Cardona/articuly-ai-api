@@ -43,6 +43,7 @@ export interface AuthMessage {
 
 export interface AuthenticatedWebSocket extends WebSocket {
   userId?: string;
+  id?: string;
 }
 
 // --- Response payloads ---

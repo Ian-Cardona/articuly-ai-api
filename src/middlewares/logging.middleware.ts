@@ -1,119 +1,103 @@
+
+// eslint-disable-next-line import/no-extraneous-dependencies
+import winston from 'winston';
+
 import type { NextFunction, Request, Response } from 'express';
 import type { AuthenticatedWebSocket } from '../types/websocket.type.ts';
 import type { LogContext } from '../types/middleware.type.ts';
 
-function formatLog(level: string, message: string, context: LogContext): string {
-  const { timestamp, method, path, userId, messageType, duration, error } = context;
-  const parts = [
-    `[${timestamp}]`,
-    level,
-    message,
-  ];
+const logger = winston.createLogger({
+  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  format: winston.format.combine(
+    winston.format.timestamp({
+      format: 'YYYY-MM-DD HH:mm:ss',
+    }),
+    winston.format.errors({ stack: true }),
+    winston.format.json(),
+  ),
+  defaultMeta: { service: 'articuly-ai-api' },
+  transports: [
+    // Write all logs with importance level of `error` or less to `error.log`
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    // Write all logs with importance level of `info` or less to `combined.log`
+    new winston.transports.File({ filename: 'logs/combined.log' }),
+  ],
+});
 
-  if (method && path) {
-    parts.push(`${method} ${path}`);
-  }
-
-  if (userId) {
-    parts.push(`user:${userId}`);
-  }
-
-  if (messageType) {
-    parts.push(`type:${messageType}`);
-  }
-
-  if (duration !== undefined) {
-    parts.push(`duration:${duration}ms`);
-  }
-
-  if (error) {
-    parts.push(`error:${error}`);
-  }
-
-  return parts.join(' | ');
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.simple(),
+      winston.format.printf(({ timestamp, level, message, ...meta }) => {
+        return `${timestamp} [${level}]: ${message} ${Object.keys(meta).length ? JSON.stringify(meta, null, 2) : ''}`;
+      }),
+    ),
+  }));
 }
 
-/**
- * HTTP request logging middleware
- */
 export function httpRequestLogger(req: Request, res: Response, next: NextFunction): void {
   const startTime = Date.now();
-  const timestamp = new Date().toISOString();
 
-  console.log(formatLog('INFO', 'HTTP Request Started', {
-    timestamp,
+  logger.info('HTTP Request Started', {
     method: req.method,
     path: req.path,
-  }));
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+  });
 
   res.on('finish', () => {
     const duration = Date.now() - startTime;
-    const level = res.statusCode >= 400 ? 'ERROR' : 'INFO';
+    const level = res.statusCode >= 400 ? 'error' : 'info';
     const message = res.statusCode >= 400 ? 'HTTP Request Failed' : 'HTTP Request Completed';
 
-    console.log(formatLog(level, message, {
-      timestamp: new Date().toISOString(),
+    logger.log(level, message, {
       method: req.method,
       path: req.path,
-      duration,
-      error: res.statusCode >= 400 ? `Status: ${res.statusCode}` : undefined,
-    }));
+      statusCode: res.statusCode,
+      duration: `${duration}ms`,
+      contentLength: res.get('Content-Length'),
+    });
   });
 
   next();
 }
 
-/**
- * WebSocket connection logging
- */
 export function websocketConnectionLogger(ws: AuthenticatedWebSocket): void {
-  console.log(formatLog('INFO', 'WebSocket Connected', {
-    timestamp: new Date().toISOString(),
+  logger.info('WebSocket Connected', {
     userId: ws.userId,
-  }));
+  });
 }
 
-/**
- * WebSocket message logging
- */
 export function websocketMessageLogger(ws: AuthenticatedWebSocket, messageType: string): void {
-  console.log(formatLog('INFO', 'WebSocket Message Received', {
-    timestamp: new Date().toISOString(),
+  logger.info('WebSocket Message Received', {
     userId: ws.userId,
     messageType,
-  }));
+  });
 }
 
-/**
- * WebSocket disconnection logging
- */
 export function websocketDisconnectionLogger(ws: AuthenticatedWebSocket, code?: number, reason?: string): void {
-  const error = code && code !== 1000 ? `Code: ${code}${reason ? `, Reason: ${reason}` : ''}` : undefined;
-
-  console.log(formatLog('INFO', 'WebSocket Disconnected', {
-    timestamp: new Date().toISOString(),
+  const logData: { userId?: string; error?: string } = {
     userId: ws.userId,
-    error,
-  }));
+  };
+
+  if (code && code !== 1000) {
+    logData.error = `Code: ${code}${reason ? `, Reason: ${reason}` : ''}`;
+  }
+
+  logger.info('WebSocket Disconnected', logData);
 }
 
-/**
- * Error logging
- */
 export function errorLogger(message: string, error: Error, context: Partial<LogContext> = {}): void {
-  console.error(formatLog('ERROR', message, {
-    timestamp: new Date().toISOString(),
+  logger.error(message, {
     error: error.message,
+    stack: error.stack,
     ...context,
-  }));
+  });
 }
 
-/**
- * Info logging
- */
 export function infoLogger(message: string, context: Partial<LogContext> = {}): void {
-  console.log(formatLog('INFO', message, {
-    timestamp: new Date().toISOString(),
-    ...context,
-  }));
+  logger.info(message, context);
 }
+
+export default logger;
