@@ -23,7 +23,25 @@ export interface ExerciseConfig {
 }
 
 /**
- * State of a user's session.
+ * Represents a single attempt within a session.
+ */
+export interface Attempt {
+  /** Attempt number (1-based, e.g., 1, 2, 3) */
+  readonly attemptNumber: number;
+  /** Start time of the attempt */
+  readonly startTime: Date | null;
+  /** End time of the attempt */
+  readonly endTime: Date | null;
+  /** Duration in milliseconds (if ended) */
+  readonly duration: number | null;
+  /** Result of the attempt: 'success', 'fail', or 'timeout' */
+  readonly result: 'success' | 'fail' | 'timeout' | null;
+  /** Feedback object (e.g., pronunciation, word feedback, etc.) */
+  readonly feedback?: Record<string, unknown> | null;
+}
+
+/**
+ * State of a user's session, now with attempt tracking.
  * Note: Dates are stored as Date objects internally, but will be serialized as ISO strings in API responses.
  */
 export interface SessionState {
@@ -37,6 +55,10 @@ export interface SessionState {
   readonly startTime: Date | null;
   /** Session end time (Date or ISO string in API). */
   readonly endTime: Date | null;
+  /** All attempts made in this session. */
+  readonly attempts: readonly Attempt[];
+  /** The index of the current attempt (0-based, or -1 if none started). */
+  readonly currentAttemptIndex: number;
 }
 
 /**
