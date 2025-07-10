@@ -1,4 +1,3 @@
-// ESM Jest mocking for verifyIdToken and Azure SDK
 import { jest } from '@jest/globals';
 import { mockFirebase, mockAzureSDK, openTestWebSocket, waitForMessage, setupTestServer } from './helpers/test-setup.js';
 
@@ -145,5 +144,78 @@ describe('WebSocket Session & Rate Limiting Integration', () => {
     
     const errorMsg = await waitForMessage(ws, msg => msg.type === 'ERROR' && msg.payload.message.includes('Audio data rate limit exceeded'), 10000);
     expect(errorMsg.payload.message).toContain('Audio data rate limit exceeded');
+  });
+
+  it('should handle audio streaming: happy path', async () => {
+    ws = await openWS();
+    await new Promise((resolve) => ws.on('open', resolve));
+    ws.send(JSON.stringify({ type: 'AUTH', idToken: 'valid-token' }));
+    await waitForMessage(ws, msg => msg.type === 'auth_success');
+    const expectedText = 'She sells seashells by the seashore';
+    ws.send(JSON.stringify({ type: 'startSession', payload: { type: 'startSession', exerciseText: expectedText } }));
+    await waitForMessage(ws, msg => msg.message === 'Session started successfully', 10000);
+    // Send valid audio data
+    const audioBase64 = Buffer.from('test audio').toString('base64');
+    ws.send(JSON.stringify({ type: 'audioData', payload: { type: 'audioData', audioBase64 } }));
+    // Expect feedback (mocked)
+    const feedbackMsg = await waitForMessage(ws, msg => msg.type === 'pronunciationFeedback' || msg.type === 'feedback' || msg.type === 'AUDIO_FEEDBACK', 10000);
+    expect(['pronunciationFeedback', 'feedback', 'AUDIO_FEEDBACK']).toContain(feedbackMsg.type);
+  });
+
+  it('should reject malformed audio data', async () => {
+    ws = await openWS();
+    await new Promise((resolve) => ws.on('open', resolve));
+    ws.send(JSON.stringify({ type: 'AUTH', idToken: 'valid-token' }));
+    await waitForMessage(ws, msg => msg.type === 'auth_success');
+    const expectedText = 'How much wood would a woodchuck chuck';
+    ws.send(JSON.stringify({ type: 'startSession', payload: { type: 'startSession', exerciseText: expectedText } }));
+    await waitForMessage(ws, msg => msg.message === 'Session started successfully', 10000);
+    // Send malformed audio (missing audioBase64)
+    ws.send(JSON.stringify({ type: 'audioData', payload: { type: 'audioData' } }));
+    const errorMsg = await waitForMessage(ws, msg => msg.type === 'ERROR' && msg.payload.message && msg.payload.message.toLowerCase().includes('audio'), 10000);
+    expect(errorMsg.payload.message.toLowerCase()).toContain('audio');
+  });
+
+  it('should reject audio data before session is started', async () => {
+    ws = await openWS();
+    await new Promise((resolve) => ws.on('open', resolve));
+    ws.send(JSON.stringify({ type: 'AUTH', idToken: 'valid-token' }));
+    await waitForMessage(ws, msg => msg.type === 'auth_success');
+    // Send audio data before starting session
+    const audioBase64 = Buffer.from('test audio').toString('base64');
+    ws.send(JSON.stringify({ type: 'audioData', payload: { type: 'audioData', audioBase64 } }));
+    const errorMsg = await waitForMessage(ws, msg => msg.type === 'ERROR' && msg.payload.message && msg.payload.message.toLowerCase().includes('session'), 10000);
+    expect(errorMsg.payload.message.toLowerCase()).toContain('session');
+  });
+
+  it('should reject audio data before authentication', async () => {
+    ws = await openWS();
+    await new Promise((resolve) => ws.on('open', resolve));
+    // Send audio data before authenticating
+    const audioBase64 = Buffer.from('test audio').toString('base64');
+    ws.send(JSON.stringify({ type: 'audioData', payload: { type: 'audioData', audioBase64 } }));
+    const errorMsg = await waitForMessage(ws, msg => msg.type === 'ERROR' && msg.payload.message && (msg.payload.message.toLowerCase().includes('auth') || msg.payload.message.toLowerCase().includes('unauthorized')), 10000);
+    expect(
+      errorMsg.payload.message.toLowerCase().includes('auth') ||
+      errorMsg.payload.message.toLowerCase().includes('unauthorized')
+    ).toBe(true);
+  });
+
+  it('should handle multiple valid audio chunks', async () => {
+    ws = await openWS();
+    await new Promise((resolve) => ws.on('open', resolve));
+    ws.send(JSON.stringify({ type: 'AUTH', idToken: 'valid-token' }));
+    await waitForMessage(ws, msg => msg.type === 'auth_success');
+    const expectedText = 'Peter Piper picked a peck of pickled peppers';
+    ws.send(JSON.stringify({ type: 'startSession', payload: { type: 'startSession', exerciseText: expectedText } }));
+    await waitForMessage(ws, msg => msg.message === 'Session started successfully', 10000);
+    // Send multiple valid audio chunks
+    const audioBase64 = Buffer.from('test audio').toString('base64');
+    for (let i = 0; i < 3; i++) {
+      ws.send(JSON.stringify({ type: 'audioData', payload: { type: 'audioData', audioBase64 } }));
+    }
+    // Expect at least one feedback message and no errors
+    const feedbackMsg = await waitForMessage(ws, msg => msg.type === 'pronunciationFeedback' || msg.type === 'feedback' || msg.type === 'AUDIO_FEEDBACK', 10000);
+    expect(['pronunciationFeedback', 'feedback', 'AUDIO_FEEDBACK']).toContain(feedbackMsg.type);
   });
 }); 

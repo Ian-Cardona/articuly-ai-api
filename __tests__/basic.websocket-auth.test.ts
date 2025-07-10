@@ -1,4 +1,3 @@
-// ESM Jest mocking for verifyIdToken
 import { jest } from '@jest/globals';
 
 jest.unstable_mockModule('../src/firebase/firebase_admin.ts', () => ({
