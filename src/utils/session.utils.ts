@@ -92,6 +92,8 @@ export const sessionUtils = {
       nextWordToConfirmIndex: 0,
       startTime: null,
       endTime: null,
+      attempts: [],
+      currentAttemptIndex: -1,
     };
 
     return {
@@ -120,6 +122,15 @@ export const sessionUtils = {
       nextWordToConfirmIndex: 0,
       startTime: new Date(),
       endTime: null,
+      attempts: [{
+        attemptNumber: 1,
+        startTime: new Date(),
+        endTime: null,
+        duration: null,
+        result: null,
+        feedback: null,
+      }],
+      currentAttemptIndex: 0,
     };
 
     return {
