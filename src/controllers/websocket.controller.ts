@@ -2,12 +2,15 @@ import { validateWebSocketMessage, safeJsonParse } from '../validations/websocke
 import { azureSpeechService } from '../services/azure_speech.service.ts';
 import { sessionUtils } from '../utils/session.utils.ts';
 import { sessionStoreManager } from '../services/session_store.service.ts';
+import { sessionRecoveryService } from '../services/session_recovery.service.ts';
+import { attemptLimitService } from '../services/attempt_limit.service.ts';
 import { errorResponses } from '../types/error.type.ts';
-import { createSessionResponse, createExerciseResponse } from '../utils/response.utils.ts';
+import { createSessionResponse, createExerciseResponse, createReconnectResponse } from '../utils/response.utils.ts';
 import { ExerciseType } from '../types/session.type.ts';
 
 import type { AuthenticatedWebSocket } from '../types/websocket.type.ts';
 import type { WebSocketMessage, WebSocketPayload } from '../types/websocket.type.ts';
+import type { ExerciseConfig } from '../types/session.type.ts';
 
 // WebSocket message handlers
 const messageHandlers = {
@@ -26,6 +29,17 @@ const messageHandlers = {
     }
 
     try {
+      // Check attempt limits before starting
+      const attemptCheck = attemptLimitService.canStartAttempt(ws.userId);
+      if (!attemptCheck.allowed) {
+        ws.send(JSON.stringify(errorResponses.internalError({
+          operation: 'start_session',
+          errorCode: 'ATTEMPT_LIMIT_EXCEEDED',
+          errorDetails: attemptCheck.reason,
+        })));
+        return;
+      }
+
       // Get or create session
       let session = sessionStoreManager.getSession(ws.userId);
       const exerciseType = getExerciseTypeFromPayload(payload);
@@ -207,6 +221,70 @@ const messageHandlers = {
       })));
     }
   },
+
+  /**
+   * Handle reconnection attempt.
+   */
+  reconnect: async (ws: AuthenticatedWebSocket, payload: WebSocketPayload): Promise<void> => {
+    if (!ws.userId) {
+      ws.send(JSON.stringify(errorResponses.unauthorized()));
+      return;
+    }
+
+    if (payload.type !== 'reconnect' || !payload.idToken) {
+      ws.send(JSON.stringify(errorResponses.invalidPayload()));
+      return;
+    }
+
+    try {
+      // Check if user can reconnect to existing session
+      const reconnectCheck = attemptLimitService.canReconnectToSession(ws.userId);
+      if (!reconnectCheck.allowed) {
+        ws.send(JSON.stringify(errorResponses.internalError({
+          operation: 'reconnect',
+          errorCode: 'RECONNECT_LIMIT_EXCEEDED',
+          errorDetails: reconnectCheck.reason,
+        })));
+        return;
+      }
+
+      // Mark WebSocket as reconnecting
+      ws.isReconnecting = true;
+
+      // Handle reconnection
+      const recoveryResult = await sessionRecoveryService.handleReconnection(ws, payload);
+
+      if (!recoveryResult.success) {
+        ws.send(JSON.stringify(errorResponses.internalError({
+          operation: 'reconnect',
+          errorCode: 'RECONNECT_FAILED',
+          errorDetails: recoveryResult.error,
+        })));
+        return;
+      }
+
+      // Send reconnection response
+      const response = createReconnectResponse(
+        recoveryResult.sessionRestored,
+        recoveryResult.sessionId,
+        recoveryResult.exerciseConfig as ExerciseConfig | undefined,
+      );
+      ws.send(JSON.stringify(response));
+
+      // Clear reconnecting flag
+      ws.isReconnecting = false;
+
+      console.log(`Reconnection handled for user ${ws.userId}, session restored: ${recoveryResult.sessionRestored}`);
+    } catch (error) {
+      ws.isReconnecting = false;
+      console.error(`Error handling reconnection for user ${ws.userId}:`, error);
+      ws.send(JSON.stringify(errorResponses.internalError({
+        operation: 'reconnect',
+        errorCode: 'RECONNECT_ERROR',
+        errorDetails: error instanceof Error ? error.message : 'Unknown error',
+      })));
+    }
+  },
 };
 
 // Main WebSocket message handler
@@ -247,6 +325,9 @@ export const handleWebSocketMessage = async (ws: AuthenticatedWebSocket, message
       case 'stopSession':
         await messageHandlers.stopSession(ws, parsedMessage.payload);
         break;
+      case 'reconnect':
+        await messageHandlers.reconnect(ws, parsedMessage.payload);
+        break;
       default:
         ws.send(JSON.stringify(errorResponses.unsupportedMessageType('unknown')));
     }
@@ -268,20 +349,63 @@ export const handleWebSocketConnection = (ws: AuthenticatedWebSocket): void => {
 export const handleWebSocketClose = async (ws: AuthenticatedWebSocket): Promise<void> => {
   if (ws.userId) {
     try {
-      // Stop session if active
       const session = sessionStoreManager.getSession(ws.userId);
+
       if (session?.state.isActive) {
-        const stoppedSession = sessionUtils.stopSession(session);
-        sessionStoreManager.setSession(ws.userId, stoppedSession);
+        // If session is active, we need to track this as an attempt
+        // to prevent abuse through disconnection/reconnection
+
+        // Check if this session has been active for a minimum duration
+        const sessionDuration = session.state.startTime
+          ? Date.now() - session.state.startTime.getTime()
+          : 0;
+
+        const minSessionDuration = 5000; // 5 seconds minimum to count as attempt
+
+        if (sessionDuration >= minSessionDuration) {
+          // Mark current attempt as completed
+          const updatedAttempts = [...session.state.attempts];
+          if (updatedAttempts.length > 0 && session.state.currentAttemptIndex >= 0) {
+            const currentAttempt = updatedAttempts[session.state.currentAttemptIndex];
+            updatedAttempts[session.state.currentAttemptIndex] = {
+              ...currentAttempt,
+              endTime: new Date(),
+              duration: sessionDuration,
+              result: 'timeout', // Mark as timeout since user disconnected
+            };
+          }
+
+          // Update session with completed attempt
+          const sessionWithCompletedAttempt = {
+            ...session,
+            state: {
+              ...session.state,
+              attempts: updatedAttempts,
+              isActive: false,
+              endTime: new Date(),
+            },
+          };
+
+          sessionStoreManager.setSession(ws.userId, sessionWithCompletedAttempt);
+
+          console.log(`Session attempt completed due to disconnect for user ${ws.userId}, duration: ${sessionDuration}ms`);
+        } else {
+          // Session too short, don't count as attempt but preserve for recovery
+          const cleanedSession = sessionUtils.clearAzureConnection(session);
+          sessionStoreManager.setSession(ws.userId, cleanedSession);
+
+          console.log(`Short session preserved for recovery for user ${ws.userId}, duration: ${sessionDuration}ms`);
+        }
+
+        // Close Azure connection
+        await azureSpeechService.closeAzureConnection(ws.userId);
+      } else {
+        // If session is not active, clean up completely
+        await azureSpeechService.closeAzureConnection(ws.userId);
+        sessionStoreManager.removeSession(ws.userId);
+
+        console.log(`WebSocket connection closed and session cleaned up for user ${ws.userId}`);
       }
-
-      // Close Azure connection
-      await azureSpeechService.closeAzureConnection(ws.userId);
-
-      // Remove session
-      sessionStoreManager.removeSession(ws.userId);
-
-      console.log(`WebSocket connection closed and session cleaned up for user ${ws.userId}`);
     } catch (error) {
       console.error(`Error cleaning up session for user ${ws.userId}:`, error);
     }

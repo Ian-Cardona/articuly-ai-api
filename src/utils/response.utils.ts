@@ -1,7 +1,7 @@
 import { ExerciseType } from '../types/session.type.ts';
 
 import type { ExerciseConfig } from '../types/session.type.ts';
-import type { SessionResponsePayload, ExerciseResponsePayload, WordFeedbackLivePayload, PronunciationFeedbackPayload } from '../types/websocket.type.ts';
+import type { SessionResponsePayload, ExerciseResponsePayload, WordFeedbackLivePayload, PronunciationFeedbackPayload, ReconnectResponsePayload } from '../types/websocket.type.ts';
 import type { StreamReadyResponse, StreamStoppedResponse, SuccessResponse, AuthSuccessResponse } from '../types/response.type.ts';
 
 function isExerciseConfig(obj: unknown): obj is ExerciseConfig {
@@ -137,5 +137,29 @@ export const createAuthSuccessResponse = (userId: string): AuthSuccessResponse =
       userId,
       timestamp: getTimestamp(),
     },
+  };
+};
+
+export const createReconnectResponse = (
+  sessionRestored: boolean,
+  sessionId: string,
+  exerciseConfig?: ExerciseConfig,
+): ReconnectResponsePayload => {
+  if (typeof sessionRestored !== 'boolean') {
+    throw new Error('sessionRestored must be a boolean');
+  }
+  if (typeof sessionId !== 'string') {
+    throw new Error('sessionId must be a string');
+  }
+
+  const message = sessionRestored
+    ? 'Session restored successfully'
+    : 'No active session to restore';
+
+  return {
+    message,
+    sessionRestored,
+    exerciseConfig,
+    sessionId,
   };
 };

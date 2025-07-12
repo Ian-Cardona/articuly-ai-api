@@ -7,14 +7,16 @@ export type WebSocketMessage =
   | { type: 'startSession'; payload: { type: 'startSession'; exerciseText: string } }
   | { type: 'submitExercise'; payload: { type: 'submitExercise'; exerciseText: string } }
   | { type: 'audioData'; payload: { type: 'audioData'; audioBase64: string } }
-  | { type: 'stopSession'; payload: { type: 'stopSession' } };
+  | { type: 'stopSession'; payload: { type: 'stopSession' } }
+  | { type: 'reconnect'; payload: { type: 'reconnect'; idToken: string; sessionId?: string } };
 
 // For handler convenience, a union of all payloads
 export type WebSocketPayload =
   | StartSessionPayload
   | SubmitExercisePayload
   | AudioDataPayload
-  | StopSessionPayload;
+  | StopSessionPayload
+  | ReconnectPayload;
 
 export interface StartSessionPayload {
   type: 'startSession';
@@ -35,6 +37,12 @@ export interface StopSessionPayload {
   type: 'stopSession';
 }
 
+export interface ReconnectPayload {
+  type: 'reconnect';
+  idToken: string;
+  sessionId?: string;
+}
+
 // --- Auth message ---
 export interface AuthMessage {
   type: 'AUTH';
@@ -44,6 +52,8 @@ export interface AuthMessage {
 export interface AuthenticatedWebSocket extends WebSocket {
   userId?: string;
   id?: string;
+  isReconnecting?: boolean;
+  previousSessionId?: string;
 }
 
 // --- Response payloads ---
@@ -65,4 +75,11 @@ export interface SessionResponsePayload {
 export interface ExerciseResponsePayload {
   message: string;
   exerciseConfig: ExerciseConfig;
+}
+
+export interface ReconnectResponsePayload {
+  message: string;
+  sessionRestored: boolean;
+  exerciseConfig?: ExerciseConfig;
+  sessionId: string;
 }
