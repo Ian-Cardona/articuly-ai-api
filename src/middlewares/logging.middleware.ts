@@ -1,5 +1,5 @@
 
-// eslint-disable-next-line import/no-extraneous-dependencies
+
 import winston from 'winston';
 
 import type { NextFunction, Request, Response } from 'express';

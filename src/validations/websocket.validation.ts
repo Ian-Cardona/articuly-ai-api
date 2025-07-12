@@ -64,6 +64,13 @@ const payloadValidators: Partial<Record<string, (payload: unknown) => string[]>>
     return errors;
   },
   stopSession: () => [],
+  reconnect: (payload) => {
+    const errors: string[] = [];
+    if (!hasNonEmptyStringProp(payload, 'idToken')) {
+      errors.push(ERROR_MESSAGES.INVALID_PAYLOAD_FORMAT);
+    }
+    return errors;
+  },
 };
 
 const validatePayload = (type: string, payload: unknown): { isValid: boolean; errors: string[] } => {
