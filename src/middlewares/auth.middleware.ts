@@ -1,6 +1,13 @@
 import { verifyIdToken } from '../firebase/firebase_admin.ts';
+import { userProfileService } from '../services/user_profile.service.ts';
 
-import type { AuthMessage, AuthStateWebSocket } from '../types/middleware.type.ts';
+import type { AuthMessage, AuthStateWebSocket as BaseAuthStateWebSocket } from '../types/middleware.type.ts';
+import type { UserAccount } from '../types/user.type.ts';
+
+// Extend AuthStateWebSocket to include userProfile
+interface AuthStateWebSocket extends BaseAuthStateWebSocket {
+  userProfile?: UserAccount;
+}
 
 /**
  * Validate authentication message format
@@ -33,6 +40,18 @@ export async function authenticateConnection(ws: AuthStateWebSocket, data: Buffe
     const decoded = await verifyIdToken(parsed.idToken);
     ws.userId = decoded.uid;
     ws.isAuthenticated = true;
+
+    // Create or load user profile from Firestore
+    const userResult = await userProfileService.getOrCreateUser(
+      decoded.uid,
+      decoded.email ?? '',
+      decoded.name ?? '',
+      decoded.picture ?? undefined,
+    );
+    if (!userResult.success || !userResult.user) {
+      return { success: false, error: userResult.error ?? 'Failed to load user profile' };
+    }
+    ws.userProfile = userResult.user;
     return { success: true };
   } catch {
     return { success: false, error: 'Authentication failed' };
