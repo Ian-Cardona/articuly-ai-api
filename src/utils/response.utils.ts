@@ -3,6 +3,7 @@ import { ExerciseType } from '../types/session.type.ts';
 import type { ExerciseConfig } from '../types/session.type.ts';
 import type { SessionResponsePayload, ExerciseResponsePayload, WordFeedbackLivePayload, PronunciationFeedbackPayload, ReconnectResponsePayload } from '../types/websocket.type.ts';
 import type { StreamReadyResponse, StreamStoppedResponse, SuccessResponse, AuthSuccessResponse } from '../types/response.type.ts';
+import type { UserAccount } from '../types/user.type.ts';
 
 function isExerciseConfig(obj: unknown): obj is ExerciseConfig {
   const maybe = obj as Partial<ExerciseConfig>;
@@ -127,14 +128,38 @@ export const createSuccessResponse = (message: string): SuccessResponse => {
   };
 };
 
-export const createAuthSuccessResponse = (userId: string): AuthSuccessResponse => {
-  if (typeof userId !== 'string') {
-    throw new Error('User ID must be a string');
+export const createAuthSuccessResponse = (userAccount: UserAccount): AuthSuccessResponse => {
+  if (typeof userAccount.userId !== 'string') {
+    throw new Error('User account must be provided with valid userId');
   }
+  if (typeof userAccount.email !== 'string') {
+    throw new Error('User account must have valid email');
+  }
+  if (typeof userAccount.displayName !== 'string') {
+    throw new Error('User account must have valid displayName');
+  }
+  if (typeof userAccount.dailyLimit !== 'number') {
+    throw new Error('User account must have valid dailyLimit');
+  }
+  if (typeof userAccount.attemptsToday !== 'number') {
+    throw new Error('User account must have valid attemptsToday');
+  }
+  if (!['free', 'premium', 'enterprise'].includes(userAccount.subscription)) {
+    throw new Error('User account must have valid subscription');
+  }
+
+  const remainingAttempts = Math.max(0, userAccount.dailyLimit - userAccount.attemptsToday);
+
   return {
     type: 'auth_success',
     payload: {
-      userId,
+      userId: userAccount.userId,
+      email: userAccount.email,
+      displayName: userAccount.displayName,
+      dailyLimit: userAccount.dailyLimit,
+      attemptsToday: userAccount.attemptsToday,
+      remainingAttempts,
+      subscription: userAccount.subscription,
       timestamp: getTimestamp(),
     },
   };

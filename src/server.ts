@@ -20,13 +20,11 @@ const server = createServer(app);
 
 const wss = new WebSocketServer({ noServer: true });
 
-// Extend AuthenticatedWebSocket to include isAuthenticated
 interface AuthStateWebSocket extends AuthenticatedWebSocket {
   isAuthenticated?: boolean;
 }
 
 wss.on('connection', (ws: AuthStateWebSocket) => {
-  // Initialize middleware for new connection
   initializeWebSocketMiddleware(ws);
 
   ws.on('message', async (data: Buffer) => {
@@ -42,14 +40,12 @@ wss.on('connection', (ws: AuthStateWebSocket) => {
   });
 });
 
-// Only start the server if not in test environment
 if (process.env.NODE_ENV !== 'test') {
   server.listen(PORT, () => {
     infoLogger(`Server is running on port ${PORT}`);
-    console.log(`Server is running on port ${PORT}`); // Add console.log for debugging
+    console.log(`Server is running on port ${PORT}`);
   });
 
-  // Graceful shutdown
   process.on('SIGTERM', () => {
     infoLogger('SIGTERM received, shutting down gracefully');
     cleanupAllSessions();
@@ -69,7 +65,6 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
-// Test server functions for testing
 export async function startTestServer(port = 0): Promise<{ port: number }> {
   return new Promise((resolve) => {
     const testServer = createServer(app);
@@ -97,7 +92,5 @@ export async function startTestServer(port = 0): Promise<{ port: number }> {
 }
 
 export async function stopTestServer(): Promise<void> {
-  // This would need to be implemented if we want to stop the test server
-  // For now, we'll just clean up sessions
   cleanupAllSessions();
 }
