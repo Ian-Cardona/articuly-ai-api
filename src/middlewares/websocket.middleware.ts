@@ -26,7 +26,21 @@ export async function handleWebSocketMessageWithMiddleware(ws: AuthStateWebSocke
       }
       // Send authentication success response
       if (ws.userId) {
-        ws.send(JSON.stringify(createAuthSuccessResponse(ws.userId)));
+        // Use existing userAccount or create a minimal one
+        const userAccount = ws.userAccount ?? {
+          userId: ws.userId,
+          email: 'unknown@example.com',
+          displayName: 'User',
+          dailyLimit: 2,
+          attemptsToday: 0,
+          lastAttemptDate: new Date().toISOString(),
+          totalSessions: 0,
+          subscription: 'free' as const,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          status: 'active' as const,
+        };
+        ws.send(JSON.stringify(createAuthSuccessResponse(userAccount)));
       }
       return; // Authentication successful, wait for next message
     }

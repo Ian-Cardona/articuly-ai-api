@@ -1,14 +1,137 @@
 import { jest } from '@jest/globals';
+// ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
+// Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
 
 /**
- * Mocks Firebase Admin's verifyIdToken for all tests.
+ * Mocks Firebase Admin for all tests.
  */
 export function mockFirebase() {
-  jest.unstable_mockModule('../src/firebase/firebase_admin.ts', () => ({
+  jest.unstable_mockModule('firebase-admin', () => ({
+    default: {
+      auth: () => ({
+        verifyIdToken: jest.fn(async (token: string) => {
+          if (token === 'valid-token') return { uid: 'testUserId' };
+          throw new Error('Invalid or expired ID token.');
+        }),
+      }),
+      firestore: () => ({
+        collection: jest.fn(() => ({
+          doc: jest.fn(() => ({
+            get: jest.fn(() => Promise.resolve({
+              exists: true,
+              data: () => ({
+                userId: 'testUserId',
+                email: 'test@example.com',
+                displayName: 'Test User',
+                dailyLimit: 10,
+                attemptsToday: 0,
+                lastAttemptDate: new Date().toISOString(),
+                totalSessions: 0,
+                subscription: 'free',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                status: 'active'
+              })
+            })),
+            set: jest.fn(() => Promise.resolve()),
+            update: jest.fn(() => Promise.resolve())
+          }))
+        }))
+      }),
+      initializeApp: jest.fn(),
+      credential: {
+        cert: jest.fn(),
+        applicationDefault: jest.fn(),
+      },
+      apps: [],
+      app: jest.fn(),
+    },
+    auth: () => ({
+      verifyIdToken: jest.fn(async (token: string) => {
+        if (token === 'valid-token') return { uid: 'testUserId' };
+        throw new Error('Invalid or expired ID token.');
+      }),
+    }),
+    getFirestore: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        doc: jest.fn(() => ({
+          get: jest.fn(() => Promise.resolve({
+            exists: true,
+            data: () => ({
+              userId: 'testUserId',
+              email: 'test@example.com',
+              displayName: 'Test User',
+              dailyLimit: 10,
+              attemptsToday: 0,
+              lastAttemptDate: new Date().toISOString(),
+              totalSessions: 0,
+              subscription: 'free',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              status: 'active'
+            })
+          })),
+          set: jest.fn(() => Promise.resolve()),
+          update: jest.fn(() => Promise.resolve())
+        }))
+      }))
+    })),
     verifyIdToken: jest.fn(async (token: string) => {
       if (token === 'valid-token') return { uid: 'testUserId' };
       throw new Error('Invalid or expired ID token.');
     }),
+    initializeApp: jest.fn(),
+  }));
+
+  jest.unstable_mockModule('firebase-admin/firestore', () => ({
+    getFirestore: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        doc: jest.fn(() => ({
+          get: jest.fn(() => Promise.resolve({
+            exists: true,
+            data: () => ({
+              userId: 'testUserId',
+              email: 'test@example.com',
+              displayName: 'Test User',
+              dailyLimit: 10,
+              attemptsToday: 0,
+              lastAttemptDate: new Date().toISOString(),
+              totalSessions: 0,
+              subscription: 'free',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              status: 'active'
+            })
+          })),
+          set: jest.fn(() => Promise.resolve()),
+          update: jest.fn(() => Promise.resolve())
+        }))
+      }))
+    })),
+    Firestore: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        doc: jest.fn(() => ({
+          get: jest.fn(() => Promise.resolve({
+            exists: true,
+            data: () => ({
+              userId: 'testUserId',
+              email: 'test@example.com',
+              displayName: 'Test User',
+              dailyLimit: 10,
+              attemptsToday: 0,
+              lastAttemptDate: new Date().toISOString(),
+              totalSessions: 0,
+              subscription: 'free',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              status: 'active'
+            })
+          })),
+          set: jest.fn(() => Promise.resolve()),
+          update: jest.fn(() => Promise.resolve())
+        }))
+      }))
+    })),
   }));
 }
 
@@ -131,7 +254,7 @@ export async function setupTestServer() {
   mockFirebase();
   mockAzureSDK();
   // Import the server only after all mocks are in place
-  const serverModule = await import('../../src/server');
+  const serverModule = await import('../../src/server.js');
   return {
     startTestServer: serverModule.startTestServer,
     stopTestServer: serverModule.stopTestServer,

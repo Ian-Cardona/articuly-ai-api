@@ -1,6 +1,12 @@
-import { describe, it, expect } from '@jest/globals';
+// ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
+// Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
+
 
 describe('Basic Tests', () => {
+  beforeEach(() => {
+    process.env.PORT = '3000';
+  });
+
   it('should pass a simple test', () => {
     expect(1 + 1).toBe(2);
   });

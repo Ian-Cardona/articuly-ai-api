@@ -1,33 +1,14 @@
 import { jest } from '@jest/globals';
+// ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
+// Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
 
-jest.unstable_mockModule('firebase-admin', () => {
-  const mockAuth = {
-    verifyIdToken: jest.fn(),
-  };
-  return {
-    default: {
-      apps: [],
-      initializeApp: jest.fn(() => ({ auth: () => mockAuth })),
-      credential: {
-        cert: jest.fn(),
-      },
-      auth: jest.fn(() => mockAuth),
-    },
-    auth: jest.fn(() => mockAuth),
-    credential: {
-      cert: jest.fn(),
-    },
-    apps: [],
-  };
-});
-
-let verifyIdToken: typeof import('../../src/firebase/firebase_admin').verifyIdToken;
+let verifyIdToken: typeof import('../../src/firebase/firebase_admin.js').verifyIdToken;
 let auth: any;
 
 describe('Firebase Authentication Backend', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
-    const firebaseAdmin = await import('../../src/firebase/firebase_admin');
+    const firebaseAdmin = await import('../../src/firebase/firebase_admin.js');
     verifyIdToken = firebaseAdmin.verifyIdToken;
     auth = firebaseAdmin.auth;
   });

@@ -9,10 +9,14 @@ function isExerciseConfig(obj: unknown): obj is ExerciseConfig {
   const maybe = obj as Partial<ExerciseConfig>;
   return (
     typeof maybe === 'object' &&
+    maybe !== null &&
     typeof maybe.exerciseType === 'string' &&
+    isValidExerciseType(maybe.exerciseType) &&
     typeof maybe.expectedText === 'string' &&
+    maybe.expectedText.length > 0 &&
     Array.isArray(maybe.expectedWords) &&
-    maybe.expectedWords.every((w: unknown) => typeof w === 'string')
+    maybe.expectedWords.length > 0 &&
+    maybe.expectedWords.every((w: unknown) => typeof w === 'string' && w.length > 0)
   );
 }
 
@@ -23,7 +27,9 @@ function isWordFeedback(
 ): word is string {
   return (
     typeof word === 'string' &&
+    word.length > 0 &&
     typeof index === 'number' &&
+    index >= 0 &&
     ['matched', 'skipped', 'misrecognized'].includes(status as string)
   );
 }
@@ -173,7 +179,7 @@ export const createReconnectResponse = (
   if (typeof sessionRestored !== 'boolean') {
     throw new Error('sessionRestored must be a boolean');
   }
-  if (typeof sessionId !== 'string') {
+  if (typeof sessionId !== 'string' || sessionId.length === 0) {
     throw new Error('sessionId must be a string');
   }
 

@@ -1,9 +1,13 @@
-import { describe, it, expect, jest, beforeEach, afterEach, afterAll } from '@jest/globals';
+import { jest } from '@jest/globals';
+// ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
+// Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
+
+import { describe, it, expect, beforeEach, afterEach, afterAll } from '@jest/globals';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { azureSpeechService } from '../../src/services/azure_speech.service';
-import { createMockWebSocket, createMockRecognizer, createMockPushStream, clearActiveRecognizers } from '../helpers/azure_speech.helper';
+import { azureSpeechService } from '../../src/services/azure_speech.service.js';
+import { createMockWebSocket, createMockRecognizer, createMockPushStream } from '../helpers/azure_speech.helper.js';
 
 // ES module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -239,7 +243,7 @@ describe('Azure Speech Service', () => {
         AudioStreamFormat: { getWaveFormatPCM: jest.fn().mockReturnValue({}) },
         AudioConfig: { fromStreamInput: jest.fn().mockReturnValue({}) },
         SpeechRecognizer: jest.fn(() => ({
-          startContinuousRecognitionAsync: jest.fn((success, error) => error && (error as (err: Error) => void)(new Error('fail'))),
+          startContinuousRecognitionAsync: jest.fn((_success, error) => error && (error as (err: Error) => void)(new Error('fail'))),
           stopContinuousRecognitionAsync: jest.fn(),
           close: jest.fn(),
         })),
@@ -249,8 +253,8 @@ describe('Azure Speech Service', () => {
       }));
 
       // Dynamically import the service after mocking
-      const { azureSpeechService } = await import('../../src/services/azure_speech.service');
-      const { createMockWebSocket } = await import('../helpers/azure_speech.helper');
+      const { azureSpeechService } = await import('../../src/services/azure_speech.service.js');
+      const { createMockWebSocket } = await import('../helpers/azure_speech.helper.js');
       const ws = createMockWebSocket('user4');
       await expect(azureSpeechService.createAzureConnection(ws, 'fail test')).rejects.toThrow('fail');
     });
