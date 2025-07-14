@@ -15,7 +15,9 @@
     "test": "node --experimental-vm-modules node_modules/.bin/jest",
     "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
-    "setup:env": "node scripts/setup-env.js"
+    "setup:env": "node scripts/setup-env.js",
+    "build:tests": "tsc --project tsconfig.json --outDir tests-dist --module NodeNext --target ES2020 --moduleResolution NodeNext --esModuleInterop true --allowJs false --declaration false --emitDeclarationOnly false --skipLibCheck true --noEmitOnError true --forceConsistentCasingInFileNames true --strict true --noImplicitAny true --noUnusedLocals true --noUnusedParameters true --allowImportingTsExtensions true",
+    "test:compiled": "node --experimental-vm-modules node_modules/.bin/jest --runInBand --detectOpenHandles"
   },
   "dependencies": {
     "dotenv": "^17.0.1",

@@ -1,4 +1,7 @@
+import './helpers/firestore-mock.js';
+import { setFirestoreDoc } from './helpers/firestore-mock.js';
 import { jest } from '@jest/globals';
+import type WS from 'ws';
 
 jest.unstable_mockModule('../src/firebase/firebase_admin.ts', () => ({
   verifyIdToken: jest.fn(async (token) => {
@@ -12,22 +15,38 @@ await (async () => {
   const { WebSocket } = await import('ws');
   const { startTestServer, stopTestServer } = await import('../src/server.js');
 
-  jest.setTimeout(20000);
+  // jest.setTimeout(20000);
 
-  let testServer: any;
   let port = 0;
 
-  function openWS() {
-    return new WebSocket(`ws://localhost:${port}`);
+  function openWS(): WS {
+    return new WebSocket(`ws://localhost:${port}`) as WS;
   }
 
+  // Pre-populate Firestore mock with test user before all tests
+  beforeAll(() => {
+    setFirestoreDoc('users', 'testUserId', {
+      userId: 'testUserId',
+      email: 'test@gmail.com',
+      displayName: 'Test User',
+      photoURL: '',
+      dailyLimit: 2,
+      attemptsToday: 0,
+      lastAttemptDate: new Date().toISOString(),
+      totalSessions: 0,
+      subscription: 'free',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'active',
+    });
+  });
+
   describe('WebSocket Authentication Integration', () => {
-    let ws;
+    let ws: WS | undefined;
 
     beforeAll(async () => {
       const result = await startTestServer();
       port = result.port;
-      testServer = result;
     });
 
     afterAll(async () => {
@@ -37,7 +56,7 @@ await (async () => {
     afterEach((done) => {
       if (ws && ws.readyState === ws.OPEN) {
         ws.close();
-        ws.on('close', () => done());
+        ws.once('close', () => done());
       } else {
         done();
       }
@@ -46,17 +65,17 @@ await (async () => {
     it('should authenticate with a valid token', (done) => {
       const timer = setTimeout(() => done(new Error('Timeout')), 10000);
       ws = openWS();
-      ws.on('open', () => {
-        ws.send(JSON.stringify({ type: 'AUTH', idToken: 'valid-token' }));
+      ws.once('open', () => {
+        ws!.send(JSON.stringify({ type: 'AUTH', idToken: 'valid-token' }));
       });
-      ws.on('message', (data) => {
+      ws.on('message', (data: WS.RawData) => {
         clearTimeout(timer);
         const msg = JSON.parse(data.toString());
         expect(msg.type).toBe('auth_success');
         expect(msg.payload.userId).toBe('testUserId');
         done();
       });
-      ws.on('error', (err) => {
+      ws.once('error', (err: Error) => {
         clearTimeout(timer);
         done(err);
       });
@@ -65,10 +84,10 @@ await (async () => {
     it('should reject invalid token', (done) => {
       const timer = setTimeout(() => done(new Error('Timeout')), 10000);
       ws = openWS();
-      ws.on('open', () => {
-        ws.send(JSON.stringify({ type: 'AUTH', idToken: 'invalid-token' }));
+      ws.once('open', () => {
+        ws!.send(JSON.stringify({ type: 'AUTH', idToken: 'invalid-token' }));
       });
-      ws.on('message', (data) => {
+      ws.on('message', (data: WS.RawData) => {
         clearTimeout(timer);
         const msg = JSON.parse(data.toString());
         expect(msg.type).toBe('ERROR');
@@ -79,7 +98,7 @@ await (async () => {
         ]).toContain(msg.payload.message);
         done();
       });
-      ws.on('error', (err) => {
+      ws.once('error', (err: Error) => {
         clearTimeout(timer);
         done(err);
       });
@@ -88,10 +107,10 @@ await (async () => {
     it('should reject messages before authentication', (done) => {
       const timer = setTimeout(() => done(new Error('Timeout')), 10000);
       ws = openWS();
-      ws.on('open', () => {
-        ws.send(JSON.stringify({ type: 'SOME_OTHER_TYPE' }));
+      ws.once('open', () => {
+        ws!.send(JSON.stringify({ type: 'SOME_OTHER_TYPE' }));
       });
-      ws.on('message', (data) => {
+      ws.on('message', (data: WS.RawData) => {
         clearTimeout(timer);
         const msg = JSON.parse(data.toString());
         expect(msg.type).toBe('ERROR');
@@ -102,7 +121,7 @@ await (async () => {
         ]).toContain(msg.payload.message);
         done();
       });
-      ws.on('error', (err) => {
+      ws.once('error', (err: Error) => {
         clearTimeout(timer);
         done(err);
       });

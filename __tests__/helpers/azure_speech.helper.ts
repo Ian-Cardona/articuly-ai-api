@@ -1,7 +1,8 @@
-// Test helpers for AzureSpeechService tests
-
 import { jest } from '@jest/globals';
-import type { AuthenticatedWebSocket } from '../../src/types/websocket.type';
+// ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
+// Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
+
+import type { AuthenticatedWebSocket } from '../../src/types/websocket.type.ts';
 
 export function createMockWebSocket(userId = 'user1'): AuthenticatedWebSocket {
   // Minimal mock for all required WebSocket properties
@@ -54,8 +55,8 @@ export function createMockWebSocket(userId = 'user1'): AuthenticatedWebSocket {
 
 export function createMockRecognizer() {
   return {
-    startContinuousRecognitionAsync: jest.fn((success, error) => success && (success as () => void)()),
-    stopContinuousRecognitionAsync: jest.fn((success, error) => {
+    startContinuousRecognitionAsync: jest.fn((success) => success && (success as () => void)()),
+    stopContinuousRecognitionAsync: jest.fn((success) => {
       // Always call success callback to prevent hanging promises
       if (success && typeof success === 'function') {
         success();
@@ -72,7 +73,7 @@ export function createMockPushStream() {
   };
 }
 
-export function clearActiveRecognizers(service) {
+export function clearActiveRecognizers(service: any) {
   const activeRecognizers = service.activeRecognizers;
   if (activeRecognizers && typeof activeRecognizers.clear === 'function') {
     activeRecognizers.clear();
