@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 // ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
 // Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
 
@@ -7,7 +7,7 @@ let auth: any;
 
 describe('Firebase Authentication Backend', () => {
   beforeEach(async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     const firebaseAdmin = await import('../../src/firebase/firebase_admin.js');
     verifyIdToken = firebaseAdmin.verifyIdToken;
     auth = firebaseAdmin.auth;
@@ -28,7 +28,7 @@ describe('Firebase Authentication Backend', () => {
       iss: 'https://securetoken.google.com/test-project',
       sub: 'testUserId123'
     };
-    (auth.verifyIdToken as jest.Mock<any>).mockResolvedValue(mockDecodedToken);
+    (auth.verifyIdToken as any).mockResolvedValue(mockDecodedToken);
 
     const idToken = 'mockValidIdToken';
     const decoded = await verifyIdToken(idToken);
@@ -40,7 +40,7 @@ describe('Firebase Authentication Backend', () => {
 
   it('should throw an error for an invalid ID token', async () => {
     const errorMessage = 'Firebase ID token has invalid signature.';
-    (auth.verifyIdToken as jest.Mock<any>).mockRejectedValue(new Error(errorMessage));
+    (auth.verifyIdToken as any).mockRejectedValue(new Error(errorMessage));
 
     const idToken = 'mockInvalidIdToken';
 

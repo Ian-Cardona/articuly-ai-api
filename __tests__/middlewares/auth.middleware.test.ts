@@ -1,8 +1,7 @@
-import { jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 // ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
 // Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
 import { authenticateConnection } from '../../src/middlewares/auth.middleware.ts';
 import type { AuthStateWebSocket as BaseAuthStateWebSocket } from '../../src/types/middleware.type.ts';
 import type { UserAccount } from '../../src/types/user.type.ts';
@@ -13,14 +12,14 @@ interface AuthStateWebSocket extends BaseAuthStateWebSocket {
 }
 
 // Mock Firebase Admin
-jest.mock('../../src/firebase/firebase_admin.ts', () => ({
-  verifyIdToken: jest.fn(),
+vi.mock('../../src/firebase/firebase_admin.ts', () => ({
+  verifyIdToken: vi.fn(),
 }));
 
 // Mock UserProfileService
-jest.mock('../../src/services/user_profile.service.ts', () => ({
+vi.mock('../../src/services/user_profile.service.ts', () => ({
   userProfileService: {
-    getOrCreateUser: jest.fn(),
+    getOrCreateUser: vi.fn(),
   },
 }));
 
@@ -28,11 +27,11 @@ describe('AuthMiddleware', () => {
   let mockWs: AuthStateWebSocket;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     mockWs = {
-      send: jest.fn(),
-      close: jest.fn(),
+      send: vi.fn(),
+      close: vi.fn(),
       isAuthenticated: false,
       userId: undefined,
       userProfile: undefined,

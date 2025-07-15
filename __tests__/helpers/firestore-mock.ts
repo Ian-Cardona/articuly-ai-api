@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 
 // Enhanced Firestore mock with nested in-memory store: Map<collectionName, Map<docId, docData>>
 export const firestoreData = new Map<string, Map<string, any>>();
@@ -12,7 +12,7 @@ export function setFirestoreDoc(collection: string, docId: string, data: any) {
 
 function createMockDoc(collection: string, docId: string) {
   return {
-    get: jest.fn(async () => {
+    get: vi.fn(async () => {
       const col = firestoreData.get(collection);
       const data = col ? col.get(docId) : undefined;
       return {
@@ -20,11 +20,11 @@ function createMockDoc(collection: string, docId: string) {
         data: () => data,
       };
     }),
-    set: jest.fn(async (val: any) => {
+    set: vi.fn(async (val: any) => {
       setFirestoreDoc(collection, docId, val);
       return true;
     }),
-    update: jest.fn(async (val: any) => {
+    update: vi.fn(async (val: any) => {
       const col = firestoreData.get(collection) || new Map();
       const existing = col.get(docId) || {};
       if (val && typeof val === 'object') {
@@ -35,7 +35,7 @@ function createMockDoc(collection: string, docId: string) {
       return true;
     }),
     exists: !!(firestoreData.get(collection) && firestoreData.get(collection)!.get(docId)),
-    data: jest.fn(() => {
+    data: vi.fn(() => {
       const col = firestoreData.get(collection);
       return col ? col.get(docId) : undefined;
     }),
@@ -44,31 +44,31 @@ function createMockDoc(collection: string, docId: string) {
 
 function createMockCollection(collection: string) {
   return {
-    doc: jest.fn((docId: string) => createMockDoc(collection, docId)),
+    doc: vi.fn((docId: string) => createMockDoc(collection, docId)),
   };
 }
 
 const firestoreMock = {
-  collection: jest.fn((name: string) => createMockCollection(name)),
-  runTransaction: jest.fn(async (fn: (db: any) => Promise<any>) => fn(firestoreMock)),
+  collection: vi.fn((name: string) => createMockCollection(name)),
+  runTransaction: vi.fn(async (fn: (db: any) => Promise<any>) => fn(firestoreMock)),
 };
 
-jest.unstable_mockModule('firebase-admin', () => ({
-  initializeApp: jest.fn(),
+vi.mock('firebase-admin', () => ({
+  initializeApp: vi.fn(),
   credential: {
-    cert: jest.fn(),
-    applicationDefault: jest.fn(),
+    cert: vi.fn(),
+    applicationDefault: vi.fn(),
   },
-  firestore: jest.fn(() => firestoreMock),
-  getFirestore: jest.fn(() => firestoreMock),
+  firestore: vi.fn(() => firestoreMock),
+  getFirestore: vi.fn(() => firestoreMock),
   apps: [],
-  app: jest.fn(),
+  app: vi.fn(),
   __esModule: true,
   default: {},
 }));
 
-jest.unstable_mockModule('firebase-admin/firestore', () => ({
-  getFirestore: jest.fn(() => firestoreMock),
+vi.mock('firebase-admin/firestore', () => ({
+  getFirestore: vi.fn(() => firestoreMock),
   __esModule: true,
   default: {},
 })); 

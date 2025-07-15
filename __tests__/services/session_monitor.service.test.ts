@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
 // Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
 
@@ -19,7 +19,7 @@ import { ExerciseType } from '../../src/types/session.type.ts';
 // Mock console.log to avoid output during tests
 const originalConsoleLog = console.log;
 beforeEach(() => {
-  console.log = jest.fn();
+  console.log = vi.fn();
 });
 
 afterEach(() => {

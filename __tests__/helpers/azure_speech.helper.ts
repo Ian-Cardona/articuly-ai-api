@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 // ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
 // Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
 
@@ -27,49 +27,49 @@ export function createMockWebSocket(userId = 'user1'): AuthenticatedWebSocket {
     OPEN: 1,
     CLOSING: 2,
     CLOSED: 3,
-    addEventListener: jest.fn(),
-    close: jest.fn(),
-    dispatchEvent: jest.fn(),
-    emit: jest.fn(),
-    eventNames: jest.fn(),
-    getMaxListeners: jest.fn(),
-    listenerCount: jest.fn(),
-    listeners: jest.fn(),
-    off: jest.fn(),
-    on: jest.fn(),
-    once: jest.fn(),
-    pause: jest.fn(),
-    ping: jest.fn(),
-    pong: jest.fn(),
-    prependListener: jest.fn(),
-    prependOnceListener: jest.fn(),
-    removeAllListeners: jest.fn(),
-    removeEventListener: jest.fn(),
-    removeListener: jest.fn(),
-    resume: jest.fn(),
-    send: jest.fn(),
-    setMaxListeners: jest.fn(),
-    terminate: jest.fn(),
+    addEventListener: vi.fn(),
+    close: vi.fn(),
+    dispatchEvent: vi.fn(),
+    emit: vi.fn(),
+    eventNames: vi.fn(),
+    getMaxListeners: vi.fn(),
+    listenerCount: vi.fn(),
+    listeners: vi.fn(),
+    off: vi.fn(),
+    on: vi.fn(),
+    once: vi.fn(),
+    pause: vi.fn(),
+    ping: vi.fn(),
+    pong: vi.fn(),
+    prependListener: vi.fn(),
+    prependOnceListener: vi.fn(),
+    removeAllListeners: vi.fn(),
+    removeEventListener: vi.fn(),
+    removeListener: vi.fn(),
+    resume: vi.fn(),
+    send: vi.fn(),
+    setMaxListeners: vi.fn(),
+    terminate: vi.fn(),
   } as unknown as AuthenticatedWebSocket;
 }
 
 export function createMockRecognizer() {
   return {
-    startContinuousRecognitionAsync: jest.fn((success) => success && (success as () => void)()),
-    stopContinuousRecognitionAsync: jest.fn((success) => {
+    startContinuousRecognitionAsync: vi.fn((success) => success && (success as () => void)()),
+    stopContinuousRecognitionAsync: vi.fn((success) => {
       // Always call success callback to prevent hanging promises
       if (success && typeof success === 'function') {
         success();
       }
     }),
-    close: jest.fn(),
+    close: vi.fn(),
   };
 }
 
 export function createMockPushStream() {
   return {
-    write: jest.fn(),
-    close: jest.fn(),
+    write: vi.fn(),
+    close: vi.fn(),
   };
 }
 

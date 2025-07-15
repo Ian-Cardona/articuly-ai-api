@@ -2,10 +2,8 @@ import type WS from 'ws';
 // ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
 // Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
 
-import { jest } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { openTestWebSocket, waitForMessage, setupTestServer } from './helpers/test-setup.js';
-
-jest.setTimeout(20000);
 
 let wsList: WS[] = [];
 let startTestServer: (port?: number) => Promise<{ port: number }>;
