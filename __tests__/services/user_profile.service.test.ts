@@ -1,7 +1,6 @@
-import { jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { userProfileService } from '../../src/services/user_profile.service.ts';
 import type { UserAccount, CreateUserParams, UpdateUserParams } from '../../src/types/user.type.ts';
 
@@ -13,7 +12,7 @@ describe('UserProfileService', () => {
   let mockFirestore: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     // Get the mocked instances
     const { getFirestore } = require('firebase-admin');
@@ -23,7 +22,7 @@ describe('UserProfileService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('validateGmailDomain', () => {

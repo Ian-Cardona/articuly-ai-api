@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 // ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
 // Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
 
@@ -6,18 +6,18 @@ import { jest } from '@jest/globals';
  * Mocks Firebase Admin for all tests.
  */
 export function mockFirebase() {
-  jest.unstable_mockModule('firebase-admin', () => ({
+  vi.mock('firebase-admin', () => ({
     default: {
       auth: () => ({
-        verifyIdToken: jest.fn(async (token: string) => {
+        verifyIdToken: vi.fn(async (token: string) => {
           if (token === 'valid-token') return { uid: 'testUserId' };
           throw new Error('Invalid or expired ID token.');
         }),
       }),
       firestore: () => ({
-        collection: jest.fn(() => ({
-          doc: jest.fn(() => ({
-            get: jest.fn(() => Promise.resolve({
+        collection: vi.fn(() => ({
+          doc: vi.fn(() => ({
+            get: vi.fn(() => Promise.resolve({
               exists: true,
               data: () => ({
                 userId: 'testUserId',
@@ -33,29 +33,29 @@ export function mockFirebase() {
                 status: 'active'
               })
             })),
-            set: jest.fn(() => Promise.resolve()),
-            update: jest.fn(() => Promise.resolve())
+            set: vi.fn(() => Promise.resolve()),
+            update: vi.fn(() => Promise.resolve())
           }))
         }))
       }),
-      initializeApp: jest.fn(),
+      initializeApp: vi.fn(),
       credential: {
-        cert: jest.fn(),
-        applicationDefault: jest.fn(),
+        cert: vi.fn(),
+        applicationDefault: vi.fn(),
       },
       apps: [],
-      app: jest.fn(),
+      app: vi.fn(),
     },
     auth: () => ({
-      verifyIdToken: jest.fn(async (token: string) => {
+      verifyIdToken: vi.fn(async (token: string) => {
         if (token === 'valid-token') return { uid: 'testUserId' };
         throw new Error('Invalid or expired ID token.');
       }),
     }),
-    getFirestore: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        doc: jest.fn(() => ({
-          get: jest.fn(() => Promise.resolve({
+    getFirestore: vi.fn(() => ({
+      collection: vi.fn(() => ({
+        doc: vi.fn(() => ({
+          get: vi.fn(() => Promise.resolve({
             exists: true,
             data: () => ({
               userId: 'testUserId',
@@ -71,23 +71,23 @@ export function mockFirebase() {
               status: 'active'
             })
           })),
-          set: jest.fn(() => Promise.resolve()),
-          update: jest.fn(() => Promise.resolve())
+          set: vi.fn(() => Promise.resolve()),
+          update: vi.fn(() => Promise.resolve())
         }))
       }))
     })),
-    verifyIdToken: jest.fn(async (token: string) => {
+    verifyIdToken: vi.fn(async (token: string) => {
       if (token === 'valid-token') return { uid: 'testUserId' };
       throw new Error('Invalid or expired ID token.');
     }),
-    initializeApp: jest.fn(),
+    initializeApp: vi.fn(),
   }));
 
-  jest.unstable_mockModule('firebase-admin/firestore', () => ({
-    getFirestore: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        doc: jest.fn(() => ({
-          get: jest.fn(() => Promise.resolve({
+  vi.mock('firebase-admin/firestore', () => ({
+    getFirestore: vi.fn(() => ({
+      collection: vi.fn(() => ({
+        doc: vi.fn(() => ({
+          get: vi.fn(() => Promise.resolve({
             exists: true,
             data: () => ({
               userId: 'testUserId',
@@ -103,15 +103,15 @@ export function mockFirebase() {
               status: 'active'
             })
           })),
-          set: jest.fn(() => Promise.resolve()),
-          update: jest.fn(() => Promise.resolve())
+          set: vi.fn(() => Promise.resolve()),
+          update: vi.fn(() => Promise.resolve())
         }))
       }))
     })),
-    Firestore: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        doc: jest.fn(() => ({
-          get: jest.fn(() => Promise.resolve({
+    Firestore: vi.fn(() => ({
+      collection: vi.fn(() => ({
+        doc: vi.fn(() => ({
+          get: vi.fn(() => Promise.resolve({
             exists: true,
             data: () => ({
               userId: 'testUserId',
@@ -127,8 +127,8 @@ export function mockFirebase() {
               status: 'active'
             })
           })),
-          set: jest.fn(() => Promise.resolve()),
-          update: jest.fn(() => Promise.resolve())
+          set: vi.fn(() => Promise.resolve()),
+          update: vi.fn(() => Promise.resolve())
         }))
       }))
     })),
@@ -139,7 +139,7 @@ export function mockFirebase() {
  * Mocks Azure Speech SDK for all tests.
  */
 export function mockAzureSDK() {
-  jest.unstable_mockModule('microsoft-cognitiveservices-speech-sdk', () => ({
+  vi.mock('microsoft-cognitiveservices-speech-sdk', () => ({
     SpeechConfig: class {
       static fromSubscription() { return new this(); }
       static fromJSON() { return new this(); }
@@ -150,7 +150,7 @@ export function mockAzureSDK() {
       applyTo() {}
     },
     AudioInputStream: class {
-      static createPushStream() { return { write: jest.fn(), close: jest.fn() }; }
+      static createPushStream() { return { write: vi.fn(), close: vi.fn() }; }
     },
     AudioStreamFormat: class {
       static getWaveFormatPCM() { return {}; }

@@ -1,5 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
-import { jest } from '@jest/globals';
+import { describe, it, expect, vi } from 'vitest';
 // ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
 // Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
 
@@ -49,14 +48,14 @@ describe('WebSocket Types', () => {
     it('should extend WebSocket with additional properties', () => {
       // Create a mock WebSocket with required methods
       const mockWebSocket = {
-        close: jest.fn(),
-        ping: jest.fn(),
-        pong: jest.fn(),
-        send: jest.fn(),
-        terminate: jest.fn(),
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
-        dispatchEvent: jest.fn(),
+        close: vi.fn(),
+        ping: vi.fn(),
+        pong: vi.fn(),
+        send: vi.fn(),
+        terminate: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
         readyState: 1,
         url: 'ws://localhost:3000',
         protocol: '',
@@ -76,21 +75,21 @@ describe('WebSocket Types', () => {
         isReconnecting: false,
         previousSessionId: 'sess1',
         isPaused: false,
-        pause: jest.fn(),
-        resume: jest.fn(),
-        on: jest.fn(),
-        off: jest.fn(),
-        once: jest.fn(),
-        removeListener: jest.fn(),
-        setMaxListeners: jest.fn(),
-        getMaxListeners: jest.fn(),
-        listeners: jest.fn(),
-        rawListeners: jest.fn(),
-        emit: jest.fn(),
-        eventNames: jest.fn(),
-        prependListener: jest.fn(),
-        prependOnceListener: jest.fn(),
-        removeAllListeners: jest.fn(),
+        pause: vi.fn(),
+        resume: vi.fn(),
+        on: vi.fn(),
+        off: vi.fn(),
+        once: vi.fn(),
+        removeListener: vi.fn(),
+        setMaxListeners: vi.fn(),
+        getMaxListeners: vi.fn(),
+        listeners: vi.fn(),
+        rawListeners: vi.fn(),
+        emit: vi.fn(),
+        eventNames: vi.fn(),
+        prependListener: vi.fn(),
+        prependOnceListener: vi.fn(),
+        removeAllListeners: vi.fn(),
       } as unknown as AuthenticatedWebSocket;
       expect(mockWebSocket.userId).toBe('user123');
       expect(mockWebSocket.id).toBe('id123');

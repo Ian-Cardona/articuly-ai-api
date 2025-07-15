@@ -1,8 +1,4 @@
-import { jest } from '@jest/globals';
-// ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
-// Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
-
-import { describe, it, expect, beforeEach, afterEach, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -14,28 +10,28 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Mock the Azure Speech SDK
-jest.mock('microsoft-cognitiveservices-speech-sdk', () => {
+vi.mock('microsoft-cognitiveservices-speech-sdk', () => {
   return {
     SpeechConfig: {
-      fromSubscription: jest.fn().mockReturnValue({
+      fromSubscription: vi.fn().mockReturnValue({
         speechRecognitionLanguage: 'en-US'
       })
     },
     PronunciationAssessmentConfig: {
-      fromJSON: jest.fn().mockReturnValue({
-        applyTo: jest.fn()
+      fromJSON: vi.fn().mockReturnValue({
+        applyTo: vi.fn()
       })
     },
     AudioInputStream: {
-      createPushStream: jest.fn().mockReturnValue(createMockPushStream())
+      createPushStream: vi.fn().mockReturnValue(createMockPushStream())
     },
     AudioStreamFormat: {
-      getWaveFormatPCM: jest.fn().mockReturnValue({})
+      getWaveFormatPCM: vi.fn().mockReturnValue({})
     },
     AudioConfig: {
-      fromStreamInput: jest.fn().mockReturnValue({})
+      fromStreamInput: vi.fn().mockReturnValue({})
     },
-    SpeechRecognizer: jest.fn(() => createMockRecognizer()),
+    SpeechRecognizer: vi.fn(() => createMockRecognizer()),
     ResultReason: {
       RecognizingSpeech: 'RecognizingSpeech',
       RecognizedSpeech: 'RecognizedSpeech',
@@ -45,7 +41,7 @@ jest.mock('microsoft-cognitiveservices-speech-sdk', () => {
       Error: 'Error'
     },
     PronunciationAssessmentResult: {
-      fromResult: jest.fn().mockReturnValue({
+      fromResult: vi.fn().mockReturnValue({
         pronunciationScore: 85,
         accuracyScore: 90,
         fluencyScore: 88,
@@ -56,7 +52,7 @@ jest.mock('microsoft-cognitiveservices-speech-sdk', () => {
 });
 
 // Mock the config
-jest.mock('../../src/config/index.ts', () => ({
+vi.mock('../../src/config/index.ts', () => ({
   config: {
     azureSpeechKey: 'test-key',
     azureSpeechRegion: 'test-region'
@@ -100,7 +96,7 @@ describe('Azure Speech Service', () => {
     }
     
     // Clear all mocks to prevent state leakage
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterAll(async () => {
@@ -204,7 +200,7 @@ describe('Azure Speech Service', () => {
 
     it('should close existing connection if one exists', async () => {
       const ws = createMockWebSocket('user1');
-      const closeAzureConnectionSpy = jest.spyOn(azureSpeechService, 'closeAzureConnection').mockImplementationOnce(async () => {
+      const closeAzureConnectionSpy = vi.spyOn(azureSpeechService, 'closeAzureConnection').mockImplementationOnce(async () => {
         // Actually remove the connection from the state to prevent the error
         const activeConnections = (azureSpeechService as any).state?.activeConnections;
         if (activeConnections) {
@@ -235,21 +231,21 @@ describe('Azure Speech Service', () => {
     });
 
     it('should reject the promise if recognition fails to start', async () => {
-      jest.resetModules();
-      jest.doMock('microsoft-cognitiveservices-speech-sdk', () => ({
-        SpeechConfig: { fromSubscription: jest.fn().mockReturnValue({ speechRecognitionLanguage: 'en-US' }) },
-        PronunciationAssessmentConfig: { fromJSON: jest.fn().mockReturnValue({ applyTo: jest.fn() }) },
-        AudioInputStream: { createPushStream: jest.fn().mockReturnValue({ write: jest.fn(), close: jest.fn() }) },
-        AudioStreamFormat: { getWaveFormatPCM: jest.fn().mockReturnValue({}) },
-        AudioConfig: { fromStreamInput: jest.fn().mockReturnValue({}) },
-        SpeechRecognizer: jest.fn(() => ({
-          startContinuousRecognitionAsync: jest.fn((_success, error) => error && (error as (err: Error) => void)(new Error('fail'))),
-          stopContinuousRecognitionAsync: jest.fn(),
-          close: jest.fn(),
+      vi.resetModules();
+      vi.doMock('microsoft-cognitiveservices-speech-sdk', () => ({
+        SpeechConfig: { fromSubscription: vi.fn().mockReturnValue({ speechRecognitionLanguage: 'en-US' }) },
+        PronunciationAssessmentConfig: { fromJSON: vi.fn().mockReturnValue({ applyTo: vi.fn() }) },
+        AudioInputStream: { createPushStream: vi.fn().mockReturnValue({ write: vi.fn(), close: vi.fn() }) },
+        AudioStreamFormat: { getWaveFormatPCM: vi.fn().mockReturnValue({}) },
+        AudioConfig: { fromStreamInput: vi.fn().mockReturnValue({}) },
+        SpeechRecognizer: vi.fn(() => ({
+          startContinuousRecognitionAsync: vi.fn((_success, error) => error && (error as (err: Error) => void)(new Error('fail'))),
+          stopContinuousRecognitionAsync: vi.fn(),
+          close: vi.fn(),
         })),
         ResultReason: { RecognizingSpeech: 'RecognizingSpeech', RecognizedSpeech: 'RecognizedSpeech', NoMatch: 'NoMatch' },
         CancellationReason: { Error: 'Error' },
-        PronunciationAssessmentResult: { fromResult: jest.fn().mockReturnValue({}) }
+        PronunciationAssessmentResult: { fromResult: vi.fn().mockReturnValue({}) }
       }));
 
       // Dynamically import the service after mocking

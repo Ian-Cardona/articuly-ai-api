@@ -1,10 +1,10 @@
+import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import './helpers/firestore-mock.js';
 import { setFirestoreDoc } from './helpers/firestore-mock.js';
-import { jest } from '@jest/globals';
 import type WS from 'ws';
 
-jest.unstable_mockModule('../src/firebase/firebase_admin.ts', () => ({
-  verifyIdToken: jest.fn(async (token) => {
+vi.mock('../src/firebase/firebase_admin.ts', () => ({
+  verifyIdToken: vi.fn(async (token) => {
     if (token === 'valid-token') return { uid: 'testUserId' };
     throw new Error('Invalid or expired ID token.');
   })
@@ -14,8 +14,6 @@ jest.unstable_mockModule('../src/firebase/firebase_admin.ts', () => ({
 await (async () => {
   const { WebSocket } = await import('ws');
   const { startTestServer, stopTestServer } = await import('../src/server.js');
-
-  // jest.setTimeout(20000);
 
   let port = 0;
 
@@ -53,77 +51,93 @@ await (async () => {
       await stopTestServer();
     });
 
-    afterEach((done) => {
+    afterEach(async () => {
       if (ws && ws.readyState === ws.OPEN) {
-        ws.close();
-        ws.once('close', () => done());
-      } else {
-        done();
+        await new Promise<void>(resolve => {
+          ws!.once('close', () => resolve());
+          ws!.close();
+        });
       }
     });
 
-    it('should authenticate with a valid token', (done) => {
-      const timer = setTimeout(() => done(new Error('Timeout')), 10000);
+    it('should authenticate with a valid token', async () => {
       ws = openWS();
-      ws.once('open', () => {
-        ws!.send(JSON.stringify({ type: 'AUTH', idToken: 'valid-token' }));
-      });
-      ws.on('message', (data: WS.RawData) => {
-        clearTimeout(timer);
-        const msg = JSON.parse(data.toString());
-        expect(msg.type).toBe('auth_success');
-        expect(msg.payload.userId).toBe('testUserId');
-        done();
-      });
-      ws.once('error', (err: Error) => {
-        clearTimeout(timer);
-        done(err);
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Timeout')), 10000);
+        ws!.once('open', () => {
+          ws!.send(JSON.stringify({ type: 'AUTH', idToken: 'valid-token' }));
+        });
+        ws!.on('message', (data: WS.RawData) => {
+          clearTimeout(timer);
+          const msg = JSON.parse(data.toString());
+          try {
+            expect(msg.type).toBe('auth_success');
+            expect(msg.payload.userId).toBe('testUserId');
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        });
+        ws!.once('error', (err: Error) => {
+          clearTimeout(timer);
+          reject(err);
+        });
       });
     });
 
-    it('should reject invalid token', (done) => {
-      const timer = setTimeout(() => done(new Error('Timeout')), 10000);
+    it('should reject invalid token', async () => {
       ws = openWS();
-      ws.once('open', () => {
-        ws!.send(JSON.stringify({ type: 'AUTH', idToken: 'invalid-token' }));
-      });
-      ws.on('message', (data: WS.RawData) => {
-        clearTimeout(timer);
-        const msg = JSON.parse(data.toString());
-        expect(msg.type).toBe('ERROR');
-        // Accept either 'Authentication failed' or 'Unauthorized access' as valid error messages
-        expect([
-          'Authentication failed',
-          'Unauthorized access',
-        ]).toContain(msg.payload.message);
-        done();
-      });
-      ws.once('error', (err: Error) => {
-        clearTimeout(timer);
-        done(err);
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Timeout')), 10000);
+        ws!.once('open', () => {
+          ws!.send(JSON.stringify({ type: 'AUTH', idToken: 'invalid-token' }));
+        });
+        ws!.on('message', (data: WS.RawData) => {
+          clearTimeout(timer);
+          const msg = JSON.parse(data.toString());
+          try {
+            expect(msg.type).toBe('ERROR');
+            expect([
+              'Authentication failed',
+              'Unauthorized access',
+            ]).toContain(msg.payload.message);
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        });
+        ws!.once('error', (err: Error) => {
+          clearTimeout(timer);
+          reject(err);
+        });
       });
     });
 
-    it('should reject messages before authentication', (done) => {
-      const timer = setTimeout(() => done(new Error('Timeout')), 10000);
+    it('should reject messages before authentication', async () => {
       ws = openWS();
-      ws.once('open', () => {
-        ws!.send(JSON.stringify({ type: 'SOME_OTHER_TYPE' }));
-      });
-      ws.on('message', (data: WS.RawData) => {
-        clearTimeout(timer);
-        const msg = JSON.parse(data.toString());
-        expect(msg.type).toBe('ERROR');
-        // Accept either 'Authentication required' or 'Unauthorized access' as valid error messages
-        expect([
-          'Authentication required',
-          'Unauthorized access',
-        ]).toContain(msg.payload.message);
-        done();
-      });
-      ws.once('error', (err: Error) => {
-        clearTimeout(timer);
-        done(err);
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Timeout')), 10000);
+        ws!.once('open', () => {
+          ws!.send(JSON.stringify({ type: 'SOME_OTHER_TYPE' }));
+        });
+        ws!.on('message', (data: WS.RawData) => {
+          clearTimeout(timer);
+          const msg = JSON.parse(data.toString());
+          try {
+            expect(msg.type).toBe('ERROR');
+            expect([
+              'Authentication required',
+              'Unauthorized access',
+            ]).toContain(msg.payload.message);
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        });
+        ws!.once('error', (err: Error) => {
+          clearTimeout(timer);
+          reject(err);
+        });
       });
     });
   });

@@ -1,7 +1,7 @@
 // ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
 // Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { sessionStoreManager, sessionStoreOps, createSessionStore } from '../../src/services/session_store.service.ts';
 import type { AudioSession } from '../../src/types/session.type.ts';
 
