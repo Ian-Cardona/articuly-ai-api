@@ -1,16 +1,15 @@
 import { vi } from 'vitest';
 
-// Enhanced Firestore mock with nested in-memory store: Map<collectionName, Map<docId, docData>>
 export const firestoreData = new Map<string, Map<string, any>>();
 
-export function setFirestoreDoc(collection: string, docId: string, data: any) {
+export function setFirestoreDoc(collection: string, docId: string, data: any): void {
   if (!firestoreData.has(collection)) {
     firestoreData.set(collection, new Map());
   }
   firestoreData.get(collection)!.set(docId, data);
 }
 
-function createMockDoc(collection: string, docId: string) {
+export function createMockDoc(collection: string, docId: string): any {
   return {
     get: vi.fn(async () => {
       const col = firestoreData.get(collection);
@@ -42,13 +41,13 @@ function createMockDoc(collection: string, docId: string) {
   };
 }
 
-function createMockCollection(collection: string) {
+export function createMockCollection(collection: string): any {
   return {
     doc: vi.fn((docId: string) => createMockDoc(collection, docId)),
   };
 }
 
-const firestoreMock = {
+export const firestoreMock = {
   collection: vi.fn((name: string) => createMockCollection(name)),
   runTransaction: vi.fn(async (fn: (db: any) => Promise<any>) => fn(firestoreMock)),
 };

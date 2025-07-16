@@ -1,9 +1,9 @@
 import { vi } from 'vitest';
-// ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
-// Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
-
 import type { AuthenticatedWebSocket } from '../../src/types/websocket.type.ts';
 
+/**
+ * Creates a mock AuthenticatedWebSocket for testing.
+ */
 export function createMockWebSocket(userId = 'user1'): AuthenticatedWebSocket {
   // Minimal mock for all required WebSocket properties
   return {
@@ -53,7 +53,10 @@ export function createMockWebSocket(userId = 'user1'): AuthenticatedWebSocket {
   } as unknown as AuthenticatedWebSocket;
 }
 
-export function createMockRecognizer() {
+/**
+ * Creates a mock recognizer for Azure Speech SDK.
+ */
+export function createMockRecognizer(): { startContinuousRecognitionAsync: any; stopContinuousRecognitionAsync: any; close: any } {
   return {
     startContinuousRecognitionAsync: vi.fn((success) => success && (success as () => void)()),
     stopContinuousRecognitionAsync: vi.fn((success) => {
@@ -66,14 +69,20 @@ export function createMockRecognizer() {
   };
 }
 
-export function createMockPushStream() {
+/**
+ * Creates a mock push stream for Azure Speech SDK.
+ */
+export function createMockPushStream(): { write: any; close: any } {
   return {
     write: vi.fn(),
     close: vi.fn(),
   };
 }
 
-export function clearActiveRecognizers(service: any) {
+/**
+ * Clears all active recognizers from a service.
+ */
+export function clearActiveRecognizers(service: any): void {
   const activeRecognizers = service.activeRecognizers;
   if (activeRecognizers && typeof activeRecognizers.clear === 'function') {
     activeRecognizers.clear();

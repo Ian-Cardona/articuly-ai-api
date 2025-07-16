@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-// ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
-
+import '../setup';
 import { userProfileService } from '../../src/services/user_profile.service.ts';
 import type { UserAccount, CreateUserParams, UpdateUserParams } from '../../src/types/user.type.ts';
-
-// Remove per-file Firestore mock; global mock is now used.
 
 describe('UserProfileService', () => {
   let mockDoc: any;

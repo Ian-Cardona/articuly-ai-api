@@ -1,11 +1,9 @@
 import { vi } from 'vitest';
-// ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
-// Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
 
 /**
  * Mocks Firebase Admin for all tests.
  */
-export function mockFirebase() {
+export function mockFirebase(): void {
   vi.mock('firebase-admin', () => ({
     default: {
       auth: () => ({
@@ -138,50 +136,72 @@ export function mockFirebase() {
 /**
  * Mocks Azure Speech SDK for all tests.
  */
-export function mockAzureSDK() {
+export function mockAzureSDK(): void {
+  function createSpeechConfigMock() {
+    return {
+      setProperty: () => {},
+    };
+  }
+  function createPronunciationAssessmentConfigMock() {
+    return {
+      applyTo: () => {},
+    };
+  }
+  function createAudioInputStreamMock() {
+    return {
+      write: vi.fn(),
+      close: vi.fn(),
+    };
+  }
+  function createAudioStreamFormatMock() {
+    return {};
+  }
+  function createAudioConfigMock() {
+    return {};
+  }
+  function createSpeechRecognizerMock() {
+    return {
+      canceled: null,
+      recognized: null,
+      recognizing: null,
+      sessionStarted: null,
+      sessionStopped: null,
+      speechStartDetected: null,
+      speechEndDetected: null,
+      startContinuousRecognitionAsync: (success: () => void) => setTimeout(success, 10),
+      stopContinuousRecognitionAsync: (success: () => void) => setTimeout(success, 10),
+      close: () => {},
+      recognizeOnceAsync: (success: (result: any) => void) => setTimeout(() => success({}), 10),
+    };
+  }
+  function createPronunciationAssessmentResultMock() {
+    return {
+      pronunciationScore: 100,
+      accuracyScore: 100,
+      fluencyScore: 100,
+      completenessScore: 100,
+    };
+  }
   vi.mock('microsoft-cognitiveservices-speech-sdk', () => ({
-    SpeechConfig: class {
-      static fromSubscription() { return new this(); }
-      static fromJSON() { return new this(); }
-      setProperty() {}
+    SpeechConfig: {
+      fromSubscription: () => createSpeechConfigMock(),
+      fromJSON: () => createSpeechConfigMock(),
     },
-    PronunciationAssessmentConfig: class {
-      static fromJSON() { return new this(); }
-      applyTo() {}
+    PronunciationAssessmentConfig: {
+      fromJSON: () => createPronunciationAssessmentConfigMock(),
     },
-    AudioInputStream: class {
-      static createPushStream() { return { write: vi.fn(), close: vi.fn() }; }
+    AudioInputStream: {
+      createPushStream: () => createAudioInputStreamMock(),
     },
-    AudioStreamFormat: class {
-      static getWaveFormatPCM() { return {}; }
+    AudioStreamFormat: {
+      getWaveFormatPCM: () => createAudioStreamFormatMock(),
     },
-    AudioConfig: class {
-      static fromStreamInput() { return {}; }
+    AudioConfig: {
+      fromStreamInput: () => createAudioConfigMock(),
     },
-    SpeechRecognizer: class {
-      public canceled: any = null;
-      public recognized: any = null;
-      public recognizing: any = null;
-      public sessionStarted: any = null;
-      public sessionStopped: any = null;
-      public speechStartDetected: any = null;
-      public speechEndDetected: any = null;
-      constructor() {
-        this.canceled = null;
-        this.recognized = null;
-        this.recognizing = null;
-        this.sessionStarted = null;
-        this.sessionStopped = null;
-        this.speechStartDetected = null;
-        this.speechEndDetected = null;
-      }
-      startContinuousRecognitionAsync(success: () => void) { setTimeout(success, 10); }
-      stopContinuousRecognitionAsync(success: () => void) { setTimeout(success, 10); }
-      close() {}
-      recognizeOnceAsync(success: (result: any) => void) { setTimeout(() => success({}), 10); }
-    },
-    PronunciationAssessmentResult: class {
-      static fromResult() { return { pronunciationScore: 100, accuracyScore: 100, fluencyScore: 100, completenessScore: 100 }; }
+    SpeechRecognizer: () => createSpeechRecognizerMock(),
+    PronunciationAssessmentResult: {
+      fromResult: () => createPronunciationAssessmentResultMock(),
     },
     ResultReason: {
       RecognizingSpeech: 'RecognizingSpeech',
@@ -250,11 +270,11 @@ export function waitForMessage(
  * Sets up all mocks and imports the server only after mocks are in place.
  * Returns the server control functions (startTestServer, stopTestServer).
  */
-export async function setupTestServer() {
+export async function setupTestServer(): Promise<{ startTestServer: (port?: number) => Promise<{ port: number }>; stopTestServer: () => Promise<void> }> {
   mockFirebase();
   mockAzureSDK();
-  // Import the server only after all mocks are in place
-  const serverModule = await import('../../src/server.js');
+  // Import the server test utils only after all mocks are in place
+  const serverModule = await import('./server.test-utils.ts');
   return {
     startTestServer: serverModule.startTestServer,
     stopTestServer: serverModule.stopTestServer,

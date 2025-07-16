@@ -9,8 +9,6 @@ import type {
   GmailValidationResult,
 } from '../types/user.type.ts';
 
-const db = getFirestore();
-
 function isUserAccount(obj: unknown): obj is UserAccount {
   if (!obj || typeof obj !== 'object') return false;
   const u = obj as Partial<UserAccount>;
@@ -56,6 +54,7 @@ export class UserProfileService {
    */
   async createUser(params: CreateUserParams): Promise<AuthResult> {
     try {
+      const db = getFirestore();
       const { userId, email, displayName, photoURL, dailyLimit = 2 } = params;
 
       // Validate Gmail domain
@@ -116,6 +115,7 @@ export class UserProfileService {
    */
   async getUser(userId: string): Promise<AuthResult> {
     try {
+      const db = getFirestore();
       const userDoc = await db.collection(this.usersCollection).doc(userId).get();
 
       if (!userDoc.exists) {
@@ -166,6 +166,7 @@ export class UserProfileService {
    */
   async updateUser(userId: string, params: UpdateUserParams): Promise<AuthResult> {
     try {
+      const db = getFirestore();
       const userResult = await this.getUser(userId);
       if (!userResult.success || !userResult.user) {
         return userResult;
@@ -277,6 +278,7 @@ export class UserProfileService {
    */
   async incrementAttempts(userId: string): Promise<boolean> {
     try {
+      const db = getFirestore();
       const userRef = db.collection(this.usersCollection).doc(userId);
 
       await db.runTransaction(async (transaction) => {
@@ -316,6 +318,7 @@ export class UserProfileService {
    * Initialize daily usage tracking
    */
   private async initializeDailyUsage(userId: string, dailyLimit: number): Promise<void> {
+    const db = getFirestore();
     try {
       const today = new Date().toDateString();
       const dailyUsageDoc = {
@@ -337,6 +340,7 @@ export class UserProfileService {
    * Reset daily usage for a user
    */
   private async resetDailyUsage(userId: string): Promise<void> {
+    const db = getFirestore();
     try {
       const userRef = db.collection(this.usersCollection).doc(userId);
 

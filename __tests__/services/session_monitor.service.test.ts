@@ -1,3 +1,4 @@
+import '../setup';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 // ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
 // Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts

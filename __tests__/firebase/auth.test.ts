@@ -1,6 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-// ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
-// Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
 
 let verifyIdToken: typeof import('../../src/firebase/firebase_admin.js').verifyIdToken;
 let auth: any;
