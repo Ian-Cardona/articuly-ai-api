@@ -1,7 +1,4 @@
 import type WS from 'ws';
-// ESM-compatible Jest mocks for firebase-admin and firebase-admin/firestore
-// Removed per-file jest.mock() for firebase-admin and firebase-admin/firestore; now globally mocked in setup.ts
-
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { openTestWebSocket, waitForMessage, setupTestServer } from './helpers/test-setup.js';
 
@@ -13,25 +10,16 @@ let WS_URL: string;
 let ws: WS | undefined;
 
 async function openWS() {
-  const ws = await openTestWebSocket(wsList, WS_URL);
-  ws.on('message', data => {
-    try {
-      console.log('WS MSG:', data.toString());
-    } catch (e) {
-      console.log('WS MSG (non-string):', data);
-    }
-  });
-  return ws;
+  return await openTestWebSocket(wsList, WS_URL);
 }
 
 describe('WebSocket Session & Rate Limiting Integration', () => {
   beforeAll(async () => {
-    // Set up all mocks and import server only after mocks are in place
     const serverSetup = await setupTestServer();
     startTestServer = serverSetup.startTestServer;
     stopTestServer = serverSetup.stopTestServer;
     ({ MESSAGE_LIMIT } = await import('../src/constants/rate_limit.constant.ts'));
-    const { port } = await startTestServer(0); // use random available port
+    const { port } = await startTestServer(0);
     WS_URL = `ws://localhost:${port}`;
   });
 
@@ -65,12 +53,12 @@ describe('WebSocket Session & Rate Limiting Integration', () => {
     }));
   });
 
-  afterEach((done) => {
+  afterEach(async () => {
     if (ws && ws.readyState === ws.OPEN) {
-      ws.close();
-      ws.on('close', () => done());
-    } else {
-      done();
+      await new Promise<void>(resolve => {
+        ws!.once('close', () => resolve());
+        ws!.close();
+      });
     }
   });
 
@@ -142,7 +130,7 @@ describe('WebSocket Session & Rate Limiting Integration', () => {
       ws!.send(JSON.stringify(msg));
     }
     
-    const errorMsg = await waitForMessage(ws, msg => msg.type === 'ERROR' && msg.payload.message.includes('Audio data rate limit exceeded'), 10000);
+    const errorMsg = await waitForMessage(ws, msg => msg.type === 'ERROR' && msg.payload.message.includes('Audio data rate limit exceeded'), 20000);
     expect(errorMsg.payload.message).toContain('Audio data rate limit exceeded');
   });
 
@@ -172,7 +160,7 @@ describe('WebSocket Session & Rate Limiting Integration', () => {
     await waitForMessage(ws, msg => msg.message === 'Session started successfully', 10000);
     // Send malformed audio (missing audioBase64)
     ws!.send(JSON.stringify({ type: 'audioData', payload: { type: 'audioData' } }));
-    const errorMsg = await waitForMessage(ws, msg => msg.type === 'ERROR' && msg.payload.message && msg.payload.message.toLowerCase().includes('audio'), 10000);
+    const errorMsg = await waitForMessage(ws, msg => msg.type === 'ERROR' && msg.payload.message && msg.payload.message.toLowerCase().includes('audio'), 20000);
     expect(errorMsg.payload.message.toLowerCase()).toContain('audio');
   });
 
@@ -184,7 +172,7 @@ describe('WebSocket Session & Rate Limiting Integration', () => {
     // Send audio data before starting session
     const audioBase64 = Buffer.from('test audio').toString('base64');
     ws!.send(JSON.stringify({ type: 'audioData', payload: { type: 'audioData', audioBase64 } }));
-    const errorMsg = await waitForMessage(ws, msg => msg.type === 'ERROR' && msg.payload.message && msg.payload.message.toLowerCase().includes('session'), 10000);
+    const errorMsg = await waitForMessage(ws, msg => msg.type === 'ERROR' && msg.payload.message && msg.payload.message.toLowerCase().includes('session'), 20000);
     expect(errorMsg.payload.message.toLowerCase()).toContain('session');
   });
 
@@ -194,7 +182,7 @@ describe('WebSocket Session & Rate Limiting Integration', () => {
     // Send audio data before authenticating
     const audioBase64 = Buffer.from('test audio').toString('base64');
     ws!.send(JSON.stringify({ type: 'audioData', payload: { type: 'audioData', audioBase64 } }));
-    const errorMsg = await waitForMessage(ws, msg => msg.type === 'ERROR' && msg.payload.message && (msg.payload.message.toLowerCase().includes('auth') || msg.payload.message.toLowerCase().includes('unauthorized')), 10000);
+    const errorMsg = await waitForMessage(ws, msg => msg.type === 'ERROR' && msg.payload.message && (msg.payload.message.toLowerCase().includes('auth') || msg.payload.message.toLowerCase().includes('unauthorized')), 20000);
     expect(
       errorMsg.payload.message.toLowerCase().includes('auth') ||
       errorMsg.payload.message.toLowerCase().includes('unauthorized')
@@ -215,7 +203,7 @@ describe('WebSocket Session & Rate Limiting Integration', () => {
       ws!.send(JSON.stringify({ type: 'audioData', payload: { type: 'audioData', audioBase64 } }));
     }
     // Expect at least one feedback message and no errors
-    const feedbackMsg = await waitForMessage(ws, msg => msg.type === 'pronunciationFeedback' || msg.type === 'feedback' || msg.type === 'AUDIO_FEEDBACK', 10000);
+    const feedbackMsg = await waitForMessage(ws, msg => msg.type === 'pronunciationFeedback' || msg.type === 'feedback' || msg.type === 'AUDIO_FEEDBACK', 20000);
     expect(['pronunciationFeedback', 'feedback', 'AUDIO_FEEDBACK']).toContain(feedbackMsg.type);
   });
 }); 

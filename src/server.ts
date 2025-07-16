@@ -43,7 +43,6 @@ wss.on('connection', (ws: AuthStateWebSocket) => {
 if (process.env.NODE_ENV !== 'test') {
   server.listen(PORT, () => {
     infoLogger(`Server is running on port ${PORT}`);
-    console.log(`Server is running on port ${PORT}`);
   });
 
   process.on('SIGTERM', () => {
@@ -63,34 +62,4 @@ if (process.env.NODE_ENV !== 'test') {
       process.exit(0);
     });
   });
-}
-
-export async function startTestServer(port = 0): Promise<{ port: number }> {
-  return new Promise((resolve) => {
-    const testServer = createServer(app);
-    const testWss = new WebSocketServer({ server: testServer });
-
-    testWss.on('connection', (ws: AuthStateWebSocket) => {
-      initializeWebSocketMiddleware(ws);
-      ws.on('message', async (data: Buffer) => {
-        await handleWebSocketMessageWithMiddleware(ws, data);
-      });
-      ws.on('close', (code?: number, reason?: string) => {
-        handleWebSocketCloseWithMiddleware(ws, code, reason);
-      });
-      ws.on('error', (error: Error) => {
-        handleWebSocketErrorWithMiddleware(ws, error);
-      });
-    });
-
-    testServer.listen(port, () => {
-      const address = testServer.address();
-      const testPort = typeof address === 'object' && address ? address.port : 0;
-      resolve({ port: testPort });
-    });
-  });
-}
-
-export async function stopTestServer(): Promise<void> {
-  cleanupAllSessions();
 }

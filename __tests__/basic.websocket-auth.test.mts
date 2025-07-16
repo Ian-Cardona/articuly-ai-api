@@ -10,10 +10,9 @@ vi.mock('../src/firebase/firebase_admin.ts', () => ({
   })
 }));
 
-// All other imports and test code must be inside an async IIFE
 await (async () => {
   const { WebSocket } = await import('ws');
-  const { startTestServer, stopTestServer } = await import('../src/server.js');
+  const { startTestServer, stopTestServer } = await import('./helpers/server.test-utils.ts');
 
   let port = 0;
 
@@ -21,7 +20,6 @@ await (async () => {
     return new WebSocket(`ws://localhost:${port}`) as WS;
   }
 
-  // Pre-populate Firestore mock with test user before all tests
   beforeAll(() => {
     setFirestoreDoc('users', 'testUserId', {
       userId: 'testUserId',

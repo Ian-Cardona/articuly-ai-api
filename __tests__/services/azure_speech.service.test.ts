@@ -1,3 +1,4 @@
+import '../setup';
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
